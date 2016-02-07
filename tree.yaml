@@ -1,0 +1,104 @@
+---
+description: Pulp servers Tree
+stages:
+  - name: lab
+    pulp_root_node:
+      fqdn: pulp-lab-1.local
+      tags:
+        - '0MZ'
+      children:
+        - fqdn: pulp-lab-11.local
+          tags:
+            - '11MZ'
+          children:
+            - fqdn: pulp-lab-111.local
+              children:
+                - fqdn: 'pulp-lab-1111.local'
+                  tags:
+                    - '111MZ'
+                  children:
+                    - fqdn: pulp-lab-11111.local
+                - fqdn: 'pulp-lab-1112.local'
+            - fqdn: pulp-lab-112.local
+
+        - fqdn: pulp-lab-12.local
+          children:
+            - fqdn: pulp-lab-121.local
+              tags:
+                - '12MZ'
+            - fqdn: pulp-lab-122.local
+              tags:
+                - '12MZ'
+            - fqdn: pulp-lab-123.local
+              tags:
+                - '12MZ'
+            - fqdn: pulp-lab-124.local
+              children:
+                - fqdn: 'pulp-lab-1241.local'
+                  tags:
+                    - '111MZ'
+                  children:
+                    - fqdn: pulp-lab-12411.local
+                - fqdn: 'pulp-lab-1242.local'
+
+        - fqdn: pulp-lab-13.local
+
+  - name: prd
+    pulp_root_node:
+      fqdn: pulp-prd-1.local
+      tags:
+        - '0MZ'
+      children:
+        - fqdn: pulp-prd-11.local
+          tags:
+            - '11MZ'
+          children:
+            - fqdn: pulp-prd-111.local
+              children:
+                - fqdn: 'pulp-prd-1111.local'
+                  tags:
+                    - '111MZ'
+                  children:
+                    - fqdn: pulp-prd-11111.local
+                - fqdn: 'pulp-prd-1112.local'
+            - fqdn: pulp-prd-112.local
+
+        - fqdn: pulp-prd-12.local
+          children:
+            - fqdn: pulp-prd-121.local
+              tags:
+                - '12MZ'
+            - fqdn: pulp-prd-122.local
+              tags:
+                - '12MZ'
+            - fqdn: pulp-prd-123.local
+              tags:
+                - '12MZ'
+
+        - fqdn: pulp-prd-13.local
+
+  - name: dev
+    pulp_root_node:
+      fqdn: pulp-dev-1.local
+      children:
+        - fqdn: pulp-dev-11.local
+          children:
+            - fqdn: pulp-dev-111.local
+              children:
+                - fqdn: pulp-dev-1111.local
+                  children:
+                    - fqdn: pulp-dev-11111.local
+                - fqdn: pulp-dev-1112.local
+            - fqdn: pulp-dev-112.local
+
+        - fqdn: pulp-dev-12.local
+          children:
+            - fqdn: pulp-dev-121.local
+            - fqdn: pulp-dev-122.local
+            - fqdn: pulp-dev-123.local
+
+        - fqdn: pulp-dev-13.local
+          children:
+            - fqdn: pulp-dev-131.local
+            - fqdn: pulp-dev-132.local
+            - fqdn: pulp-dev-133.local
