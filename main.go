@@ -1,46 +1,31 @@
+// Copyright © 2016 NAME HERE <EMAIL ADDRESS>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
+	"nodetree/cmd"
 	"nodetree/log"
-	"nodetree/models"
 	"os"
 )
 
 func main() {
-
 	log.Init(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr)
-
-	//  this are only test statements. Will be invoked by the future command line
-	config := models.NewConfig()
-	stage_tree := config.GetStageTree()
-
-	log.Info.Println("")
-	log.Info.Println("-------------- START SYNC LAB TREE --------------------")
-	lab_stage := stage_tree.GetStageByName("lab")
-	lab_stage.Sync()
-	log.Info.Println("-------------- START SYNC LAB TREE --------------------")
-
-	log.Info.Println("")
-	log.Info.Println("-------------- START SYNC PRD TREE --------------------")
-	prd_stage := stage_tree.GetStageByName("prd")
-	prd_stage.Sync()
-	log.Info.Println("-------------- START SYNC PRD TREE --------------------")
-
-	log.Info.Println("")
-	fqdns := []string{"pulp-lab-12411.local", "pulp-lab-11111.local"}
-	log.Info.Printf("-------------- START SYNC FQDNS %v --------------------\n", fqdns)
-	lab_stage.SyncByFilters(fqdns, []string{})
-	log.Info.Printf("-------------- STOP SYNC FQDNS %v --------------------\n", fqdns)
-
-	log.Info.Println("")
-	tags := []string{"111MZ", "12MZ"}
-	log.Info.Printf("-------------- START SYNC TAGS %v --------------------\n", tags)
-	lab_stage.SyncByFilters([]string{}, tags)
-	log.Info.Printf("-------------- STOP SYNC TAGS %v --------------------\n", tags)
-
-	log.Info.Println("")
-	log.Info.Printf("-------------- START SYNC BY Filters %v %v --------------------\n", fqdns, tags)
-	lab_stage.SyncByFilters(fqdns, tags)
-	log.Info.Printf("-------------- STOP SYNC BY Filters %v %v --------------------\n", fqdns, tags)
+	if err := cmd.RootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
 }
