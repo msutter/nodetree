@@ -2,7 +2,7 @@
 description: Pulp servers Tree
 stages:
   - name: lab
-    pulp_root_node:
+    pulprootnode:
       fqdn: pulp-lab-1.local
       tags:
         - '0MZ'
@@ -44,7 +44,7 @@ stages:
         - fqdn: pulp-lab-13.local
 
   - name: prd
-    pulp_root_node:
+    pulprootnode:
       fqdn: pulp-prd-1.local
       tags:
         - '0MZ'
@@ -78,7 +78,7 @@ stages:
         - fqdn: pulp-prd-13.local
 
   - name: dev
-    pulp_root_node:
+    pulprootnode:
       fqdn: pulp-dev-1.local
       children:
         - fqdn: pulp-dev-11.local

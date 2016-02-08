@@ -15,33 +15,47 @@
 package cmd
 
 import (
+	// "fmt"
 	"github.com/spf13/cobra"
 )
 
-// pulpCmd represents the pulp command
-var pulpCmd = &cobra.Command{
-	Use:   "pulp",
-	Short: "A node tree manager for Pulp",
-	Long: `A node tree manager for Pulp
+// showCmd represents the show command
+var showCmd = &cobra.Command{
+	Use:   "show [stage name]",
+	Short: "showhronization of pulp nodes for a given stage",
+	Long: `showhronization of pulp nodes in a given stage
 
-nodetree is a CLI that can manages nodes in a tree through API calls
-This is the pulp namespace`,
-	// No run function here
-	// Run: func(cmd *cobra.Command, args []string) {
-	// },
+Filters can be set on Fqdns and tags.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) != 1 {
+			ErrorExitWithUsage(cmd, "show needs a name for the stage")
+		}
+
+		// check for flags
+		if len(pFqdns) == 0 && len(pTags) == 0 {
+			pAll = true
+		}
+
+		currentStage := stageTree.GetStageByName(args[0])
+
+		if pAll {
+			currentStage.Show()
+		} else {
+			// currentStage.ShowByFilters(pFqdns, pTags)
+		}
+	},
 }
 
 func init() {
-	RootCmd.AddCommand(pulpCmd)
+	pulpCmd.AddCommand(showCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// pulpCmd.PersistentFlags().String("foo", "", "A help for foo")
+	//showCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// pulpCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
+	// showCmd.Flags().StringSlice("fqdns", []string{}, "Filter on Fqdns")
 }

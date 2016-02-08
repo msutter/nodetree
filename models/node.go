@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"nodetree/log"
 	"strings"
 	"time"
 )
@@ -177,15 +176,21 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 }
 
 func (n *Node) Sync() (err error) {
-	log.Info.Printf("%v start Syncing %v at Depth %v\n", strings.Repeat("--", n.Depth), n.Fqdn, n.Depth)
+	fmt.Printf("%vstart Syncing %v at Depth %v\n", strings.Repeat("+----", n.Depth), n.Fqdn, n.Depth)
 	random := rand.Intn(1000) + 100
 	time.Sleep(time.Duration(random) * time.Millisecond)
-	log.Info.Printf("%v stop Syncing %v at Depth %v\n", strings.Repeat("--", n.Depth), n.Fqdn, n.Depth)
-	if n.Fqdn == "pulp-lab-11.local" {
-		err = errors.New(fmt.Sprintf("Sync on %v failed!", n.Fqdn))
+	fmt.Printf("%vstop Syncing %v at Depth %v\n", strings.Repeat("+----", n.Depth), n.Fqdn, n.Depth)
+	if n.Fqdn == "pulp-lab-111.local" {
+		msg := fmt.Sprintf("Sync failed on %v!", n.Fqdn)
+		err = errors.New(msg)
 	}
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (n *Node) Show() (err error) {
+	fmt.Printf("%v%v\n", strings.Repeat("+----", n.Depth), n.Fqdn)
 	return nil
 }

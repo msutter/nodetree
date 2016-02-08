@@ -7,7 +7,7 @@ import (
 
 type Stage struct {
 	Name         string
-	PulpRootNode *Node `yaml:"pulp_root_node"`
+	PulpRootNode *Node
 	Leafs        []*Node
 }
 
@@ -124,5 +124,11 @@ func (s *Stage) SyncByFilters(nodeFqdns []string, nodeTags []string) {
 			}
 		}
 		return nil
+	})
+}
+
+func (s *Stage) Show() {
+	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
+		n.Show()
 	})
 }
