@@ -31,11 +31,16 @@ Filters can be set on Fqdns and tags.`,
 			ErrorExitWithUsage(cmd, "sync needs a name for the stage")
 		}
 
+		currentStage := stageTree.GetStageByName(args[0])
+
 		// check for flags
 		if len(pFqdns) == 0 && len(pTags) == 0 && !pAll {
 			fmt.Printf("\nWARNING: This will sync the complete tree for the '%v' stage!\n", args[0])
+			fmt.Println("")
+			currentStage.Show()
+			fmt.Println("")
 			fmt.Printf("you can get ride of this warning by setting the --all flag\n")
-			fmt.Printf("\nAre you sure you want to continue? (yes/no)\n")
+			fmt.Printf("Are you sure you want to continue? (yes/no)\n")
 			userConfirm := askForConfirmation()
 			if !userConfirm {
 				ErrorExit("sync canceled !")
@@ -44,11 +49,13 @@ Filters can be set on Fqdns and tags.`,
 			}
 		}
 
-		currentStage := stageTree.GetStageByName(args[0])
 		if pAll {
 			currentStage.Sync()
 		} else {
+			// filteredStage := currentStage.Filter(pFqdns, pTags)
+			// filteredStage.Sync()
 			currentStage.SyncByFilters(pFqdns, pTags)
+
 		}
 	},
 }

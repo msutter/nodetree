@@ -99,10 +99,31 @@ func (n *Node) FqdnIsAncestor(ancestorFqdn string) bool {
 	return returnValue
 }
 
+// Are Fqdns a Ancestor?
+func (n *Node) FqdnsAreAncestor(ancestorFqdns []string) bool {
+	returnValue := false
+	for _, ancestorFqdn := range ancestorFqdns {
+		if n.FqdnIsAncestor(ancestorFqdn) {
+			returnValue = true
+		}
+	}
+	return returnValue
+}
+
 // Get Ancestors
 func (n *Node) Ancestors() (ancestors []*Node) {
 	n.AncestorTreeWalker(func(ancestor *Node) {
 		ancestors = append(ancestors, ancestor)
+	})
+	return
+}
+
+// Get Ancestors by Depth id
+func (n *Node) GetAncestorByDepth(depth int) (depthAncestor *Node) {
+	n.AncestorTreeWalker(func(ancestor *Node) {
+		if ancestor.Depth == depth {
+			depthAncestor = ancestor
+		}
 	})
 	return
 }
@@ -140,6 +161,38 @@ func (n *Node) ChildTreeWalker(f func(*Node)) {
 		f(node) // resurse
 		node.ChildTreeWalker(f)
 	}
+}
+
+func (n *Node) IslastBrother() bool {
+	if n.lastBrother() == n {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (n *Node) DestroyMe() {
+	if !n.IsRoot() {
+		index := n.BrotherIndex()
+		n.Parent.Children = append(n.Parent.Children[:index], n.Parent.Children[index+1:]...)
+	}
+}
+
+func (n *Node) BrotherIndex() (iret int) {
+	if !n.IsRoot() {
+		for i, child := range n.Parent.Children {
+			if n == child {
+				iret = i
+			}
+		}
+	}
+	return iret
+}
+
+func (n *Node) lastBrother() (lastBrother *Node) {
+	brothers := n.Parent.Children
+	lastBrother = brothers[len(brothers)-1]
+	return
 }
 
 // Is Fqdn a Descendant?
@@ -199,16 +252,22 @@ func (n *Node) Show() (err error) {
 
 	for i := 1; i < n.Depth; i++ {
 		if n.Depth != 0 {
-			fmt.Printf("│   ")
+
+			// is my ancestor at Depth x the last brother
+			depthAncestor := n.GetAncestorByDepth(i)
+
+			if depthAncestor.IslastBrother() {
+				fmt.Printf("    ")
+			} else {
+				fmt.Printf("│   ")
+			}
 		} else {
 			fmt.Printf("    ")
 		}
 	}
 
 	if n.Depth != 0 {
-		brothers := n.Parent.Children
-		lastBrother := brothers[len(brothers)-1]
-		if lastBrother.Fqdn == n.Fqdn {
+		if n.IslastBrother() {
 			fmt.Printf("└── %v\n", n.Fqdn)
 		} else {
 			fmt.Printf("├── %v\n", n.Fqdn)

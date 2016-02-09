@@ -41,7 +41,10 @@ Filters can be set on Fqdns and tags.`,
 		if pAll {
 			currentStage.Show()
 		} else {
-			// currentStage.ShowByFilters(pFqdns, pTags)
+			// filteredStage := currentStage.Filter(pFqdns, pTags)
+			// filteredStage.Show()
+			currentStage.ShowByFilters(pFqdns, pTags)
+
 		}
 	},
 }

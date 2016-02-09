@@ -1,6 +1,7 @@
 package models
 
 import (
+	// "fmt"
 	"nodetree/log"
 	"time"
 )
@@ -132,3 +133,51 @@ func (s *Stage) Show() {
 		n.Show()
 	})
 }
+
+// filter the nodes to show.
+func (s *Stage) ShowByFilters(nodeFqdns []string, nodeTags []string) {
+	s.SyncedNodeTreeWalker(func(n *Node) error {
+		if n.FqdnsAreDescendant(nodeFqdns) ||
+			n.TagsInDescendant(nodeTags) ||
+			n.ContainsTags(nodeTags) ||
+			n.MatchFqdns(nodeFqdns) {
+			err := n.Show()
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// // get a filtered stage.
+// func (s *Stage) Filter(nodeFqdns []string, nodeTags []string) (filteredStage *Stage) {
+
+// 	filteredStage = s
+
+// 	s.NodeTreeWalker(filteredStage.PulpRootNode, func(n *Node) {
+// 		fmt.Printf("----------------------------------------------------------\n")
+// 		fmt.Printf("my fqdn %v\n", n.Fqdn)
+// 		fmt.Printf("----------------------------------------------------------\n")
+// 		fmt.Printf("fqdns %v\n", nodeFqdns)
+// 		fmt.Printf("tags %v\n", nodeTags)
+
+// 		fmt.Printf("FqdnsAreDescendant %v\n", n.FqdnsAreDescendant(nodeFqdns))
+// 		fmt.Printf("TagsInDescendant %v\n", n.TagsInDescendant(nodeTags))
+// 		fmt.Printf("ContainsTags %v\n", n.ContainsTags(nodeTags))
+// 		fmt.Printf("MatchFqdns %v\n", n.MatchFqdns(nodeFqdns))
+// 		fmt.Printf("IsRoot %v\n", n.IsRoot())
+
+// 		if !n.FqdnsAreDescendant(nodeFqdns) &&
+// 			!n.TagsInDescendant(nodeTags) &&
+// 			!n.ContainsTags(nodeTags) &&
+// 			!n.MatchFqdns(nodeFqdns) &&
+// 			!n.IsRoot() {
+// 			fmt.Printf("destroying %v\n", n.Fqdn)
+// 			n.DestroyMe()
+// 		}
+
+// 	})
+
+// 	return filteredStage
+// }
