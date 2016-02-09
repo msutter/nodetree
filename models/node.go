@@ -191,6 +191,28 @@ func (n *Node) Sync() (err error) {
 }
 
 func (n *Node) Show() (err error) {
-	fmt.Printf("%v%v\n", strings.Repeat("+----", n.Depth), n.Fqdn)
+	if n.Depth == 0 {
+		fmt.Printf("├── %v\n", n.Fqdn)
+	} else {
+		fmt.Printf("    ")
+	}
+
+	for i := 1; i < n.Depth; i++ {
+		if n.Depth != 0 {
+			fmt.Printf("│   ")
+		} else {
+			fmt.Printf("    ")
+		}
+	}
+
+	if n.Depth != 0 {
+		brothers := n.Parent.Children
+		lastBrother := brothers[len(brothers)-1]
+		if lastBrother.Fqdn == n.Fqdn {
+			fmt.Printf("└── %v\n", n.Fqdn)
+		} else {
+			fmt.Printf("├── %v\n", n.Fqdn)
+		}
+	}
 	return nil
 }

@@ -30,16 +30,13 @@ stages:
               tags:
                 - '12MZ'
             - fqdn: pulp-lab-123.local
-              tags:
-                - '12MZ'
-            - fqdn: pulp-lab-124.local
               children:
-                - fqdn: 'pulp-lab-1241.local'
+                - fqdn: 'pulp-lab-1231.local'
                   tags:
                     - '111MZ'
                   children:
-                    - fqdn: pulp-lab-12411.local
-                - fqdn: 'pulp-lab-1242.local'
+                    - fqdn: pulp-lab-12311.local
+                - fqdn: 'pulp-lab-1232.local'
 
         - fqdn: pulp-lab-13.local
 
