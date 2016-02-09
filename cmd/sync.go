@@ -52,10 +52,8 @@ Filters can be set on Fqdns and tags.`,
 		if pAll {
 			currentStage.Sync()
 		} else {
-			// filteredStage := currentStage.Filter(pFqdns, pTags)
-			// filteredStage.Sync()
-			currentStage.SyncByFilters(pFqdns, pTags)
-
+			filteredStage := currentStage.Filter(pFqdns, pTags)
+			filteredStage.Sync()
 		}
 	},
 }

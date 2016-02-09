@@ -112,72 +112,26 @@ func (s *Stage) Sync() {
 	})
 }
 
-// filter the nodes to sync.
-func (s *Stage) SyncByFilters(nodeFqdns []string, nodeTags []string) {
-	s.SyncedNodeTreeWalker(func(n *Node) error {
-		if n.FqdnsAreDescendant(nodeFqdns) ||
-			n.TagsInDescendant(nodeTags) ||
-			n.ContainsTags(nodeTags) ||
-			n.MatchFqdns(nodeFqdns) {
-			err := n.Sync()
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
 func (s *Stage) Show() {
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		n.Show()
 	})
 }
 
-// filter the nodes to show.
-func (s *Stage) ShowByFilters(nodeFqdns []string, nodeTags []string) {
-	s.SyncedNodeTreeWalker(func(n *Node) error {
-		if n.FqdnsAreDescendant(nodeFqdns) ||
-			n.TagsInDescendant(nodeTags) ||
-			n.ContainsTags(nodeTags) ||
-			n.MatchFqdns(nodeFqdns) {
-			err := n.Show()
-			if err != nil {
-				return err
+// get a filtered stage.
+func (s *Stage) Filter(nodeFqdns []string, nodeTags []string) (filteredStage *Stage) {
+	filteredStage = s
+	s.NodeTreeWalker(filteredStage.PulpRootNode, func(n *Node) {
+		childsToKeep := []*Node{}
+		for _, child := range n.Children {
+			if child.FqdnsAreDescendant(nodeFqdns) ||
+				child.MatchFqdns(nodeFqdns) ||
+				child.TagsInDescendant(nodeTags) ||
+				child.ContainsTags(nodeTags) {
+				childsToKeep = append(childsToKeep, child)
 			}
 		}
-		return nil
+		n.Children = childsToKeep
 	})
+	return filteredStage
 }
-
-// // get a filtered stage.
-// func (s *Stage) Filter(nodeFqdns []string, nodeTags []string) (filteredStage *Stage) {
-
-// 	filteredStage = s
-
-// 	s.NodeTreeWalker(filteredStage.PulpRootNode, func(n *Node) {
-// 		fmt.Printf("----------------------------------------------------------\n")
-// 		fmt.Printf("my fqdn %v\n", n.Fqdn)
-// 		fmt.Printf("----------------------------------------------------------\n")
-// 		fmt.Printf("fqdns %v\n", nodeFqdns)
-// 		fmt.Printf("tags %v\n", nodeTags)
-
-// 		fmt.Printf("FqdnsAreDescendant %v\n", n.FqdnsAreDescendant(nodeFqdns))
-// 		fmt.Printf("TagsInDescendant %v\n", n.TagsInDescendant(nodeTags))
-// 		fmt.Printf("ContainsTags %v\n", n.ContainsTags(nodeTags))
-// 		fmt.Printf("MatchFqdns %v\n", n.MatchFqdns(nodeFqdns))
-// 		fmt.Printf("IsRoot %v\n", n.IsRoot())
-
-// 		if !n.FqdnsAreDescendant(nodeFqdns) &&
-// 			!n.TagsInDescendant(nodeTags) &&
-// 			!n.ContainsTags(nodeTags) &&
-// 			!n.MatchFqdns(nodeFqdns) &&
-// 			!n.IsRoot() {
-// 			fmt.Printf("destroying %v\n", n.Fqdn)
-// 			n.DestroyMe()
-// 		}
-
-// 	})
-
-// 	return filteredStage
-// }

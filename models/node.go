@@ -171,13 +171,6 @@ func (n *Node) IslastBrother() bool {
 	}
 }
 
-func (n *Node) DestroyMe() {
-	if !n.IsRoot() {
-		index := n.BrotherIndex()
-		n.Parent.Children = append(n.Parent.Children[:index], n.Parent.Children[index+1:]...)
-	}
-}
-
 func (n *Node) BrotherIndex() (iret int) {
 	if !n.IsRoot() {
 		for i, child := range n.Parent.Children {
@@ -229,12 +222,13 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 }
 
 func (n *Node) Sync() (err error) {
-	fmt.Printf("%vstart Syncing %v at Depth %v\n", strings.Repeat("+----", n.Depth), n.Fqdn, n.Depth)
-	random := rand.Intn(1000) + 100
+	fmt.Printf("%vstart Syncing %v at Depth %v\n", strings.Repeat("├── ", n.Depth+1), n.Fqdn, n.Depth)
+	random := rand.Intn(5000) + 1000
 	time.Sleep(time.Duration(random) * time.Millisecond)
-	fmt.Printf("%vstop Syncing %v at Depth %v\n", strings.Repeat("+----", n.Depth), n.Fqdn, n.Depth)
-	if n.Fqdn == "pulp-lab-111.local" {
+	fmt.Printf("%vstop Syncing %v at Depth %v\n", strings.Repeat("├── ", n.Depth+1), n.Fqdn, n.Depth)
+	if n.Fqdn == "xpulp-lab-111.local" {
 		msg := fmt.Sprintf("Sync failed on %v!", n.Fqdn)
+		fmt.Printf("%v%v\n", strings.Repeat("├── ", n.Depth+1), msg)
 		err = errors.New(msg)
 	}
 	if err != nil {
@@ -244,18 +238,20 @@ func (n *Node) Sync() (err error) {
 }
 
 func (n *Node) Show() (err error) {
+	n.RenderMessage(n.Fqdn)
+	return nil
+}
+
+func (n *Node) RenderMessage(msg string) (err error) {
 	if n.Depth == 0 {
-		fmt.Printf("├── %v\n", n.Fqdn)
+		fmt.Printf("├── %v\n", msg)
 	} else {
 		fmt.Printf("    ")
 	}
-
 	for i := 1; i < n.Depth; i++ {
 		if n.Depth != 0 {
-
 			// is my ancestor at Depth x the last brother
 			depthAncestor := n.GetAncestorByDepth(i)
-
 			if depthAncestor.IslastBrother() {
 				fmt.Printf("    ")
 			} else {
@@ -265,12 +261,11 @@ func (n *Node) Show() (err error) {
 			fmt.Printf("    ")
 		}
 	}
-
 	if n.Depth != 0 {
 		if n.IslastBrother() {
-			fmt.Printf("└── %v\n", n.Fqdn)
+			fmt.Printf("└── %v\n", msg)
 		} else {
-			fmt.Printf("├── %v\n", n.Fqdn)
+			fmt.Printf("├── %v\n", msg)
 		}
 	}
 	return nil
