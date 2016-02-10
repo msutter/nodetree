@@ -39,7 +39,7 @@ Filters can be set on Fqdns and tags.`,
 			fmt.Println("")
 			currentStage.Show()
 			fmt.Println("")
-			fmt.Printf("you can get ride of this warning by setting the --all flag\n")
+			fmt.Printf("you can get rid of this warning by setting the --all flag\n")
 			fmt.Printf("Are you sure you want to continue? (yes/no)\n")
 			userConfirm := askForConfirmation()
 			if !userConfirm {

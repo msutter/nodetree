@@ -16,10 +16,10 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/msutter/nodetree/log"
+	"github.com/msutter/nodetree/models"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"nodetree/log"
-	"nodetree/models"
 	"os"
 )
 

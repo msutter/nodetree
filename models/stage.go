@@ -2,7 +2,7 @@ package models
 
 import (
 	// "fmt"
-	"nodetree/log"
+	"github.com/msutter/nodetree/log"
 	"time"
 )
 

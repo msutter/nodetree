@@ -16,9 +16,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/msutter/nodetree/cmd"
+	"github.com/msutter/nodetree/log"
 	"io/ioutil"
-	"nodetree/cmd"
-	"nodetree/log"
 	"os"
 )
 
