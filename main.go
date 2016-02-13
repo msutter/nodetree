@@ -17,13 +17,13 @@ package main
 import (
 	"fmt"
 	"github.com/msutter/nodetree/cmd"
-	"github.com/msutter/nodetree/log"
-	"io/ioutil"
+	// "github.com/msutter/nodetree/log"
+	// "io/ioutil"
 	"os"
 )
 
 func main() {
-	log.Init(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr)
+	// log.Init(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr)
 	if err := cmd.RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)

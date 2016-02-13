@@ -3,99 +3,129 @@ description: Pulp servers Tree
 stages:
   - name: lab
     pulprootnode:
-      fqdn: pulp-lab-1.local
+      fqdn: pulp-lab-1.test
+      apiuser: admin
+      apipasswd: admin
       tags:
         - '0MZ'
       children:
-        - fqdn: pulp-lab-11.local
+        - fqdn: pulp-lab-11.test
+          apiuser: admin
+          apipasswd: admin
           tags:
             - '11MZ'
           children:
-            - fqdn: pulp-lab-111.local
+            - fqdn: pulp-lab-111.test
+              apiuser: admin
+              apipasswd: admin
               children:
-                - fqdn: 'pulp-lab-1111.local'
+                - fqdn: 'pulp-lab-1111.test'
+                  apiuser: admin
+                  apipasswd: admin
                   tags:
                     - '111MZ'
                   children:
-                    - fqdn: pulp-lab-11111.local
-                - fqdn: 'pulp-lab-1112.local'
-            - fqdn: pulp-lab-112.local
+                    - fqdn: pulp-lab-11111.test
+                      apiuser: admin
+                      apipasswd: admin
+                - fqdn: 'pulp-lab-1112.test'
+                  apiuser: admin
+                  apipasswd: admin
+            - fqdn: pulp-lab-112.test
+              apiuser: admin
+              apipasswd: admin
 
-        - fqdn: pulp-lab-12.local
+        - fqdn: pulp-lab-12.test
+          apiuser: admin
+          apipasswd: admin
           children:
-            - fqdn: pulp-lab-121.local
+            - fqdn: pulp-lab-121.test
+              apiuser: admin
+              apipasswd: admin
               tags:
                 - '12MZ'
-            - fqdn: pulp-lab-122.local
+            - fqdn: pulp-lab-122.test
+              apiuser: admin
+              apipasswd: admin
               tags:
                 - '12MZ'
-            - fqdn: pulp-lab-123.local
+            - fqdn: pulp-lab-123.test
+              apiuser: admin
+              apipasswd: admin
               children:
-                - fqdn: 'pulp-lab-1231.local'
+                - fqdn: 'pulp-lab-1231.test'
+                  apiuser: admin
+                  apipasswd: admin
                   tags:
                     - '111MZ'
                   children:
-                    - fqdn: pulp-lab-12311.local
-                - fqdn: 'pulp-lab-1232.local'
+                    - fqdn: pulp-lab-12311.test
+                      apiuser: admin
+                      apipasswd: admin
+                - fqdn: 'pulp-lab-1232.test'
+                  apiuser: admin
+                  apipasswd: admin
 
-        - fqdn: pulp-lab-13.local
+        - fqdn: pulp-lab-13.test
+          apiuser: admin
+          apipasswd: admin
 
   - name: prd
     pulprootnode:
-      fqdn: pulp-prd-1.local
+      fqdn: pulp-prd-1.test
       tags:
         - '0MZ'
       children:
-        - fqdn: pulp-prd-11.local
+        - fqdn: pulp-prd-11.test
           tags:
             - '11MZ'
           children:
-            - fqdn: pulp-prd-111.local
+            - fqdn: pulp-prd-111.test
               children:
-                - fqdn: 'pulp-prd-1111.local'
+                - fqdn: 'pulp-prd-1111.test'
                   tags:
                     - '111MZ'
                   children:
-                    - fqdn: pulp-prd-11111.local
-                - fqdn: 'pulp-prd-1112.local'
-            - fqdn: pulp-prd-112.local
+                    - fqdn: pulp-prd-11111.test
+                - fqdn: 'pulp-prd-1112.test'
+            - fqdn: pulp-prd-112.test
 
-        - fqdn: pulp-prd-12.local
+        - fqdn: pulp-prd-12.test
           children:
-            - fqdn: pulp-prd-121.local
+            - fqdn: pulp-prd-121.test
               tags:
                 - '12MZ'
-            - fqdn: pulp-prd-122.local
+            - fqdn: pulp-prd-122.test
               tags:
                 - '12MZ'
-            - fqdn: pulp-prd-123.local
+            - fqdn: pulp-prd-123.test
               tags:
                 - '12MZ'
 
-        - fqdn: pulp-prd-13.local
+        - fqdn: pulp-prd-13.test
 
   - name: dev
     pulprootnode:
-      fqdn: pulp-dev-1.local
+      fqdn: pulp-dev-1.test
       children:
-        - fqdn: pulp-dev-11.local
+        - fqdn: pulp-dev-11.test
           children:
-            - fqdn: pulp-dev-111.local
+            - fqdn: pulp-dev-111.test
               children:
-                - fqdn: pulp-dev-1111.local
+                - fqdn: pulp-dev-1111.test
                   children:
-                    - fqdn: pulp-dev-11111.local
-                - fqdn: pulp-dev-1112.local
-            - fqdn: pulp-dev-112.local
+                    - fqdn: pulp-dev-11111.test
+                - fqdn: pulp-dev-1112.test
+            - fqdn: pulp-dev-112.test
 
-        - fqdn: pulp-dev-12.local
+        - fqdn: pulp-dev-12.test
           children:
-            - fqdn: pulp-dev-121.local
-            - fqdn: pulp-dev-122.local
-            - fqdn: pulp-dev-123.local
+            - fqdn: pulp-dev-121.test
+            - fqdn: pulp-dev-122.test
+            - fqdn: pulp-dev-123.test
 
-        - fqdn: pulp-dev-13.local
+        - fqdn: pulp-dev-13.test
           children:
-            - fqdn: pulp-dev-131.local
-            - fqdn: pulp-dev-132.local
-            - fqdn: pulp-dev-133.local
+            - fqdn: pulp-dev-131.test
+            - fqdn: pulp-dev-132.test
+            - fqdn: pulp-dev-133.test

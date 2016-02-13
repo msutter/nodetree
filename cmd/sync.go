@@ -19,6 +19,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var repository string
+
 // syncCmd represents the sync command
 var syncCmd = &cobra.Command{
 	Use:   "sync [stage name]",
@@ -29,6 +31,10 @@ Filters can be set on Fqdns and tags.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
 			ErrorExitWithUsage(cmd, "sync needs a name for the stage")
+		}
+
+		if repository == "" {
+			ErrorExitWithUsage(cmd, "sync needs a repository name")
 		}
 
 		currentStage := stageTree.GetStageByName(args[0])
@@ -50,16 +56,17 @@ Filters can be set on Fqdns and tags.`,
 		}
 
 		if pAll {
-			currentStage.Sync()
+			currentStage.Sync(repository)
 		} else {
 			filteredStage := currentStage.Filter(pFqdns, pTags)
-			filteredStage.Sync()
+			filteredStage.Sync(repository)
 		}
 	},
 }
 
 func init() {
 	pulpCmd.AddCommand(syncCmd)
+	syncCmd.Flags().StringVarP(&repository, "repository", "r", "", "the repository to be synced.")
 
 	// Here you will define your flags and configuration settings.
 

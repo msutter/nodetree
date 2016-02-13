@@ -1,21 +1,25 @@
 package models
 
 import (
-	"errors"
+	// "errors"
 	"fmt"
-	"math/rand"
-	"strings"
+	"github.com/msutter/go-pulp/pulp"
+	// "github.com/msutter/nodetree/log"
+	// "math/rand"
+	// "strings"
 	"time"
 )
 
 type Node struct {
-	Fqdn     string
-	Tags     []string
-	Parent   *Node
-	Children []*Node
-	SyncPath []string
-	Depth    int
-	Errors   []error
+	Fqdn      string
+	ApiUser   string
+	ApiPasswd string
+	Tags      []string
+	Parent    *Node
+	Children  []*Node
+	SyncPath  []string
+	Depth     int
+	Errors    []error
 }
 
 // Matches the given fqdn?
@@ -221,20 +225,43 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 	return returnValue
 }
 
-func (n *Node) Sync() (err error) {
-	fmt.Printf("%vstart Syncing %v at Depth %v\n", strings.Repeat("├── ", n.Depth+1), n.Fqdn, n.Depth)
-	random := rand.Intn(5000) + 1000
-	time.Sleep(time.Duration(random) * time.Millisecond)
-	fmt.Printf("%vstop Syncing %v at Depth %v\n", strings.Repeat("├── ", n.Depth+1), n.Fqdn, n.Depth)
-	if n.Fqdn == "xpulp-lab-111.local" {
-		msg := fmt.Sprintf("Sync failed on %v!", n.Fqdn)
-		fmt.Printf("%v%v\n", strings.Repeat("├── ", n.Depth+1), msg)
-		err = errors.New(msg)
+func (n *Node) Sync(repository string, messageChannel chan string) (err error) {
+	if !n.IsRoot() {
+		// create the API client
+		client := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
+		callReport, _, err := client.Repositories.SyncRepository(repository)
+
+		if err != nil {
+			// log.Error.Println(err)
+			close(messageChannel)
+			return err
+		}
+		syncTaskId := callReport.SpawnedTasks[0].TaskId
+		state := "init"
+		for (state != "finished") && (state != "error") {
+
+			task, _, terr := client.Tasks.GetTask(syncTaskId)
+			if task.State == "error" {
+				errorMsg := task.ProgressReport.YumImporter.Metadata.Error
+				// log.Error.Printf("%s: %s\n", n.Fqdn, errorMsg)
+				messageChannel <- fmt.Sprintf("==> %v: %v ==> %v\n", n.Fqdn, task.State, errorMsg)
+				close(messageChannel)
+				return err
+			}
+			state = task.State
+
+			messageChannel <- fmt.Sprintf("==> %v: %v\n", n.Fqdn, state)
+			time.Sleep(500 * time.Millisecond)
+
+			if terr != nil {
+				// log.Error.Println(err)
+				close(messageChannel)
+				return err
+			}
+		}
+		close(messageChannel)
 	}
-	if err != nil {
-		return err
-	}
-	return nil
+	return
 }
 
 func (n *Node) Show() (err error) {
@@ -244,28 +271,28 @@ func (n *Node) Show() (err error) {
 
 func (n *Node) RenderMessage(msg string) (err error) {
 	if n.Depth == 0 {
-		fmt.Printf("├── %v\n", msg)
+		fmt.Printf("├─ %v\n", msg)
 	} else {
-		fmt.Printf("    ")
+		fmt.Printf("   ")
 	}
 	for i := 1; i < n.Depth; i++ {
 		if n.Depth != 0 {
 			// is my ancestor at Depth x the last brother
 			depthAncestor := n.GetAncestorByDepth(i)
 			if depthAncestor.IslastBrother() {
-				fmt.Printf("    ")
+				fmt.Printf("   ")
 			} else {
-				fmt.Printf("│   ")
+				fmt.Printf("│  ")
 			}
 		} else {
-			fmt.Printf("    ")
+			fmt.Printf("   ")
 		}
 	}
 	if n.Depth != 0 {
 		if n.IslastBrother() {
-			fmt.Printf("└── %v\n", msg)
+			fmt.Printf("└─ %v\n", msg)
 		} else {
-			fmt.Printf("├── %v\n", msg)
+			fmt.Printf("├─ %v\n", msg)
 		}
 	}
 	return nil

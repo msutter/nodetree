@@ -1,8 +1,8 @@
 package models
 
 import (
-	// "fmt"
-	"github.com/msutter/nodetree/log"
+	"fmt"
+	// "github.com/msutter/nodetree/log"
 	"time"
 )
 
@@ -67,15 +67,15 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 			// read in channel o start
 			<-inc[n.Fqdn]
 
-			if !n.AncestorsHaveError() {
-				err := f(n)
-				if err != nil {
-					log.Error.Println(err)
-					n.Errors = append(n.Errors, err)
-				}
-			} else {
-				log.Warning.Printf("Skipping node %v due to errors on folowing Ancestor: %v", n.Fqdn, n.AncestorFqdnsWithErrors())
+			// if !n.AncestorsHaveError() {
+			err := f(n)
+			if err != nil {
+				// log.Error.Println(err)
+				n.Errors = append(n.Errors, err)
 			}
+			// } else {
+			// 	// log.Warning.Printf("Skipping node %v due to errors on folowing Ancestor: %v", n.Fqdn, n.AncestorFqdnsWithErrors())
+			// }
 
 			// write on each children to unlock start
 			for _, child := range n.Children {
@@ -102,13 +102,30 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 	}
 }
 
-func (s *Stage) Sync() {
-	s.SyncedNodeTreeWalker(func(n *Node) error {
-		err := n.Sync()
-		if err != nil {
-			return err
+func (s *Stage) Sync(repository string) {
+	msgc := make(map[string]chan string)
+	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
+		msgc[n.Fqdn] = make(chan string)
+		go func() {
+			time.Sleep(time.Millisecond)
+			for msg := range msgc[n.Fqdn] {
+				fmt.Printf(msg)
+			}
+		}()
+
+		if n.AncestorsHaveError() {
+			msgc[n.Fqdn] <- fmt.Sprintf("Skipping node %v due to errors on ancestor node %v\n", n.Fqdn, n.AncestorFqdnsWithErrors()[0])
+			close(msgc[n.Fqdn])
+			return
+		} else {
+
+			err := n.Sync(repository, msgc[n.Fqdn])
+			if err != nil {
+				return err
+			}
 		}
-		return err
+
+		return
 	})
 }
 
