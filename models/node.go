@@ -336,6 +336,8 @@ func (n *Node) Sync(repository string, progressChannels chan SyncProgress) (err 
 				sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
 				sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
 				sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
+			} else {
+				fmt.Println("%s: missing content", n.Fqdn)
 			}
 
 			progressChannels <- sp
