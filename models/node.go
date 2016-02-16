@@ -328,12 +328,16 @@ func (n *Node) Sync(repository string, progressChannels chan SyncProgress) (err 
 
 			state = task.State
 			sp := SyncProgress{
-				State:      state,
-				SizeTotal:  task.ProgressReport.YumImporter.Content.SizeTotal,
-				SizeLeft:   task.ProgressReport.YumImporter.Content.SizeLeft,
-				ItemsTotal: task.ProgressReport.YumImporter.Content.ItemsTotal,
-				ItemsLeft:  task.ProgressReport.YumImporter.Content.ItemsLeft,
+				State: state,
 			}
+
+			if task.ProgressReport.YumImporter.Content != nil {
+				sp.SizeTotal = task.ProgressReport.YumImporter.Content.SizeTotal
+				sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
+				sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
+				sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
+			}
+
 			progressChannels <- sp
 			time.Sleep(500 * time.Millisecond)
 

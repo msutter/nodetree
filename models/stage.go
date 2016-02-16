@@ -1,7 +1,7 @@
 package models
 
 import (
-	// "fmt"
+	"fmt"
 	"github.com/gosuri/uiprogress"
 	"time"
 )
@@ -111,26 +111,29 @@ func (s *Stage) Sync(repository string) {
 		progressBars[n.Fqdn] = uiprogress.AddBar(100)
 		// prepend the current step to the bar
 		progressBars[n.Fqdn].PrependFunc(func(b *uiprogress.Bar) string {
-			return n.GetTreeRaw(n.Fqdn)
+			return fmt.Sprintf("%s  ", n.GetTreeRaw(n.Fqdn))
 		})
 		progressBars[n.Fqdn].AppendCompleted()
+		progressBars[n.Fqdn].PrependElapsed()
 	})
 
+	fmt.Println("")
 	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
 		progressChannels[n.Fqdn] = make(chan SyncProgress)
 
 		go func() {
 
 			for sp := range progressChannels[n.Fqdn] {
-				switch sp.State {
 
-				case "error":
-				case "skipped":
+				switch sp.State {
 				case "running":
 					if progressBars[n.Fqdn].Current() != sp.ItemsPercent() {
 						progressBars[n.Fqdn].Set(sp.ItemsPercent())
 					}
 				default:
+					progressBars[n.Fqdn].AppendFunc(func(b *uiprogress.Bar) string {
+						return sp.State
+					})
 				}
 			}
 			time.Sleep(time.Millisecond)
@@ -138,13 +141,12 @@ func (s *Stage) Sync(repository string) {
 
 		err = n.Sync(repository, progressChannels[n.Fqdn])
 		if err != nil {
-			progressBars[n.Fqdn].AppendFunc(func(b *uiprogress.Bar) string {
-				return err.Error()
-			})
+			return err
 		}
 
 		return
 	})
+	uiprogress.Stop()
 }
 
 func (s *Stage) Show() {
