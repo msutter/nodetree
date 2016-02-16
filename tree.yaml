@@ -38,28 +38,28 @@ stages:
               apipasswd: admin
               tags:
                 - '12MZ'
-            - fqdn: pulp-lab-122.test
-              apiuser: admin
-              apipasswd: admin
-              tags:
-                - '12MZ'
+            # - fqdn: pulp-lab-122.test
+            #   apiuser: admin
+            #   apipasswd: admin
+            #   tags:
+            #     - '12MZ'
             - fqdn: pulp-lab-123.test
               apiuser: admin
               apipasswd: admin
-              children:
-                - fqdn: 'pulp-lab-1231.test'
-                  apiuser: admin
-                  apipasswd: admin
-                  tags:
-                    - '111MZ'
-                  children:
-                    - fqdn: pulp-lab-12311.test
-                      apiuser: admin
-                      apipasswd: admin
+              # children:
+              #   - fqdn: 'pulp-lab-1231.test'
+              #     apiuser: admin
+              #     apipasswd: admin
+              #     tags:
+              #       - '111MZ'
+              #     children:
+              #       - fqdn: pulp-lab-12311.test
+              #         apiuser: admin
+              #         apipasswd: admin
 
-        - fqdn: pulp-lab-13.test
-          apiuser: admin
-          apipasswd: admin
+        # - fqdn: pulp-lab-13.test
+        #   apiuser: admin
+        #   apipasswd: admin
 
   - name: prd
     pulprootnode:

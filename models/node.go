@@ -7,6 +7,8 @@ import (
 	// "github.com/msutter/nodetree/log"
 	// "math/rand"
 	// "strings"
+	"bytes"
+	"math"
 	"time"
 )
 
@@ -225,24 +227,73 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 	return returnValue
 }
 
-func (n *Node) Sync(repository string, statusChannel chan string) (err error) {
+type SyncProgress struct {
+	State      string
+	SizeTotal  int
+	SizeLeft   int
+	ItemsTotal int
+	ItemsLeft  int
+	Warning    string
+	Error      error
+}
+
+func (s *SyncProgress) ItemsDone() int {
+	return s.ItemsTotal - s.ItemsLeft
+}
+
+func (s *SyncProgress) ItemsPercent() int {
+	if s.ItemsTotal == 0 {
+		return 100
+	} else {
+		return int(math.Floor(float64(s.ItemsDone()) / float64(s.ItemsTotal) * float64(100)))
+
+	}
+}
+
+func (s *SyncProgress) SizeDone() int {
+	return s.SizeTotal - s.SizeLeft
+}
+
+func (s *SyncProgress) SizePercent() int {
+	if s.SizeTotal == 0 {
+		return 100
+	} else {
+		return int(math.Floor(float64(s.SizeDone()) / float64(s.SizeTotal) * float64(100)))
+	}
+}
+
+func (n *Node) Sync(repository string, progressChannels chan SyncProgress) (err error) {
 	if !n.IsRoot() {
 		if n.AncestorsHaveError() {
-			statusChannel <- fmt.Sprintf("==> %v: [Warning] skipping sync due to errors on ancestor node %v\n", n.Fqdn, n.AncestorFqdnsWithErrors()[0])
-			close(statusChannel)
+			sp := SyncProgress{
+				State:   "skipped",
+				Warning: fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0]),
+			}
+			progressChannels <- sp
+			close(progressChannels)
 			return
 		}
 		// create the API client
 		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
 		if err != nil {
-			close(statusChannel)
+			sp := SyncProgress{
+				State: "error",
+				Error: err,
+			}
+			progressChannels <- sp
+			close(progressChannels)
 			return err
 		}
 
 		callReport, _, err := client.Repositories.SyncRepository(repository)
 		if err != nil {
-			statusChannel <- fmt.Sprintf("==> %v: [Error] %v\n", n.Fqdn, err.Error())
-			close(statusChannel)
+			sp := SyncProgress{
+				State: "error",
+				Error: err,
+			}
+
+			progressChannels <- sp
+			close(progressChannels)
 			return err
 		}
 
@@ -253,57 +304,76 @@ func (n *Node) Sync(repository string, statusChannel chan string) (err error) {
 
 			task, _, err := client.Tasks.GetTask(syncTaskId)
 			if err != nil {
-				close(statusChannel)
+				sp := SyncProgress{
+					State: "error",
+					Error: err,
+				}
+				progressChannels <- sp
+				close(progressChannels)
 				return err
 			}
 
 			if task.State == "error" {
 				errorMsg := task.ProgressReport.YumImporter.Metadata.Error
-				close(statusChannel)
-				return errors.New(errorMsg)
+				err = errors.New(errorMsg)
+				sp := SyncProgress{
+					State: "error",
+					Error: err,
+				}
+
+				progressChannels <- sp
+				close(progressChannels)
+				return err
 			}
 
 			state = task.State
-
-			statusChannel <- fmt.Sprintf("==> %v: %v\n", n.Fqdn, state)
+			sp := SyncProgress{
+				State:      state,
+				SizeTotal:  task.ProgressReport.YumImporter.Content.SizeTotal,
+				SizeLeft:   task.ProgressReport.YumImporter.Content.SizeLeft,
+				ItemsTotal: task.ProgressReport.YumImporter.Content.ItemsTotal,
+				ItemsLeft:  task.ProgressReport.YumImporter.Content.ItemsLeft,
+			}
+			progressChannels <- sp
 			time.Sleep(500 * time.Millisecond)
 
 		}
-		close(statusChannel)
+		close(progressChannels)
 	}
 	return
 }
 
 func (n *Node) Show() (err error) {
-	n.RenderMessage(n.Fqdn)
+	fmt.Printf(n.GetTreeRaw(n.Fqdn))
 	return nil
 }
 
-func (n *Node) RenderMessage(msg string) (err error) {
+func (n *Node) GetTreeRaw(msg string) (treeRaw string) {
+	var buffer bytes.Buffer
 	if n.Depth == 0 {
-		fmt.Printf("├─ %v\n", msg)
+		buffer.WriteString(fmt.Sprintf("├─ %v", msg))
 	} else {
-		fmt.Printf("   ")
+		buffer.WriteString(fmt.Sprintf("   "))
 	}
 	for i := 1; i < n.Depth; i++ {
 		if n.Depth != 0 {
 			// is my ancestor at Depth x the last brother
 			depthAncestor := n.GetAncestorByDepth(i)
 			if depthAncestor.IslastBrother() {
-				fmt.Printf("   ")
+				buffer.WriteString(fmt.Sprintf("   "))
 			} else {
-				fmt.Printf("│  ")
+				buffer.WriteString(fmt.Sprintf("│  "))
 			}
 		} else {
-			fmt.Printf("   ")
+			buffer.WriteString(fmt.Sprintf("   "))
 		}
 	}
 	if n.Depth != 0 {
 		if n.IslastBrother() {
-			fmt.Printf("└─ %v\n", msg)
+			buffer.WriteString(fmt.Sprintf("└─ %v", msg))
 		} else {
-			fmt.Printf("├─ %v\n", msg)
+			buffer.WriteString(fmt.Sprintf("├─ %v", msg))
 		}
 	}
-	return nil
+	return buffer.String()
 }

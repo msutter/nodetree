@@ -1,8 +1,8 @@
 package models
 
 import (
-	"fmt"
-	// "github.com/msutter/nodetree/log"
+	// "fmt"
+	"github.com/gosuri/uiprogress"
 	"time"
 )
 
@@ -62,7 +62,7 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 		go func() {
 			// Give some time to execute the main process
 			// (not sure about this. There are probebly better ways)
-			time.Sleep(time.Millisecond)
+			time.Sleep(time.Millisecond * 10)
 
 			// read in channel o start
 			<-inc[n.Fqdn]
@@ -103,21 +103,44 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 }
 
 func (s *Stage) Sync(repository string) {
-	statusChannels := make(map[string]chan string)
+	progressChannels := make(map[string]chan SyncProgress)
+	progressBars := make(map[string]*uiprogress.Bar)
+	uiprogress.Start() // start rendering
+
+	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
+		progressBars[n.Fqdn] = uiprogress.AddBar(100)
+		// prepend the current step to the bar
+		progressBars[n.Fqdn].PrependFunc(func(b *uiprogress.Bar) string {
+			return n.GetTreeRaw(n.Fqdn)
+		})
+		progressBars[n.Fqdn].AppendCompleted()
+	})
 
 	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
+		progressChannels[n.Fqdn] = make(chan SyncProgress)
 
-		statusChannels[n.Fqdn] = make(chan string)
 		go func() {
-			time.Sleep(time.Millisecond)
-			for msg := range statusChannels[n.Fqdn] {
-				fmt.Printf(msg)
+
+			for sp := range progressChannels[n.Fqdn] {
+				switch sp.State {
+
+				case "error":
+				case "skipped":
+				case "running":
+					if progressBars[n.Fqdn].Current() != sp.ItemsPercent() {
+						progressBars[n.Fqdn].Set(sp.ItemsPercent())
+					}
+				default:
+				}
 			}
+			time.Sleep(time.Millisecond)
 		}()
 
-		err = n.Sync(repository, statusChannels[n.Fqdn])
+		err = n.Sync(repository, progressChannels[n.Fqdn])
 		if err != nil {
-			return err
+			progressBars[n.Fqdn].AppendFunc(func(b *uiprogress.Bar) string {
+				return err.Error()
+			})
 		}
 
 		return
