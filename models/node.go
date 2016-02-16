@@ -355,7 +355,7 @@ func (n *Node) Show() (err error) {
 func (n *Node) GetTreeRaw(msg string) (treeRaw string) {
 	var buffer bytes.Buffer
 	if n.Depth == 0 {
-		buffer.WriteString(fmt.Sprintf("├─ %v", msg))
+		buffer.WriteString(fmt.Sprintf("\n├─ %v", msg))
 	} else {
 		buffer.WriteString(fmt.Sprintf("   "))
 	}

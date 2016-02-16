@@ -105,48 +105,49 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 func (s *Stage) Sync(repository string) {
 	progressChannels := make(map[string]chan SyncProgress)
 	progressBars := make(map[string]*uiprogress.Bar)
-	uiprogress.Start() // start rendering
 
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
-		progressBars[n.Fqdn] = uiprogress.AddBar(100)
-		// prepend the current step to the bar
-		progressBars[n.Fqdn].PrependFunc(func(b *uiprogress.Bar) string {
-			return fmt.Sprintf("%s  ", n.GetTreeRaw(n.Fqdn))
-		})
-		progressBars[n.Fqdn].AppendCompleted()
-		progressBars[n.Fqdn].PrependElapsed()
+		if n.IsRoot() {
+			fmt.Printf("%s\n", n.GetTreeRaw(n.Fqdn))
+		} else {
+			time.Sleep(time.Millisecond * 10)
+			progressBars[n.Fqdn] = uiprogress.AddBar(100)
+			// prepend the current step to the bar
+			progressBars[n.Fqdn].PrependFunc(func(b *uiprogress.Bar) string {
+				return fmt.Sprintf("%s  ", n.GetTreeRaw(n.Fqdn))
+			})
+			progressBars[n.Fqdn].AppendCompleted()
+		}
 	})
 
-	fmt.Println("")
+	uiprogress.Start() // start rendering
 	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
-		progressChannels[n.Fqdn] = make(chan SyncProgress)
+		if !n.IsRoot() {
+			progressChannels[n.Fqdn] = make(chan SyncProgress)
+			go func() {
+				time.Sleep(time.Millisecond * 10)
+				for sp := range progressChannels[n.Fqdn] {
+					time.Sleep(time.Millisecond * 10)
 
-		go func() {
-
-			for sp := range progressChannels[n.Fqdn] {
-
-				switch sp.State {
-				case "running":
-					if progressBars[n.Fqdn].Current() != sp.ItemsPercent() {
-						progressBars[n.Fqdn].Set(sp.ItemsPercent())
+					switch sp.State {
+					case "running":
+						if progressBars[n.Fqdn].Current() != sp.ItemsPercent() {
+							progressBars[n.Fqdn].Set(sp.ItemsPercent())
+						}
+					default:
+						progressBars[n.Fqdn].AppendFunc(func(b *uiprogress.Bar) string {
+							return sp.State
+						})
 					}
-				default:
-					progressBars[n.Fqdn].AppendFunc(func(b *uiprogress.Bar) string {
-						return sp.State
-					})
 				}
+			}()
+			err = n.Sync(repository, progressChannels[n.Fqdn])
+			if err != nil {
+				return err
 			}
-			time.Sleep(time.Millisecond)
-		}()
-
-		err = n.Sync(repository, progressChannels[n.Fqdn])
-		if err != nil {
-			return err
 		}
-
 		return
 	})
-	uiprogress.Stop()
 }
 
 func (s *Stage) Show() {

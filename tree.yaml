@@ -38,11 +38,11 @@ stages:
               apipasswd: admin
               tags:
                 - '12MZ'
-            # - fqdn: pulp-lab-122.test
-            #   apiuser: admin
-            #   apipasswd: admin
-            #   tags:
-            #     - '12MZ'
+            - fqdn: pulp-lab-122.test
+              apiuser: admin
+              apipasswd: admin
+              tags:
+                - '12MZ'
             - fqdn: pulp-lab-123.test
               apiuser: admin
               apipasswd: admin
