@@ -113,16 +113,9 @@ func (s *Stage) Sync(repository string) {
 			}
 		}()
 
-		if n.AncestorsHaveError() {
-			msgc[n.Fqdn] <- fmt.Sprintf("Skipping node %v due to errors on ancestor node %v\n", n.Fqdn, n.AncestorFqdnsWithErrors()[0])
-			close(msgc[n.Fqdn])
-			return
-		} else {
-
-			err := n.Sync(repository, msgc[n.Fqdn])
-			if err != nil {
-				return err
-			}
+		err = n.Sync(repository, msgc[n.Fqdn])
+		if err != nil {
+			return err
 		}
 
 		return

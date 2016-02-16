@@ -28,12 +28,6 @@ stages:
                     - fqdn: pulp-lab-11111.test
                       apiuser: admin
                       apipasswd: admin
-                - fqdn: 'pulp-lab-1112.test'
-                  apiuser: admin
-                  apipasswd: admin
-            - fqdn: pulp-lab-112.test
-              apiuser: admin
-              apipasswd: admin
 
         - fqdn: pulp-lab-12.test
           apiuser: admin
@@ -62,9 +56,6 @@ stages:
                     - fqdn: pulp-lab-12311.test
                       apiuser: admin
                       apipasswd: admin
-                - fqdn: 'pulp-lab-1232.test'
-                  apiuser: admin
-                  apipasswd: admin
 
         - fqdn: pulp-lab-13.test
           apiuser: admin

@@ -1,7 +1,7 @@
 package models
 
 import (
-	// "errors"
+	"errors"
 	"fmt"
 	"github.com/msutter/go-pulp/pulp"
 	// "github.com/msutter/nodetree/log"
@@ -225,41 +225,51 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 	return returnValue
 }
 
-func (n *Node) Sync(repository string, messageChannel chan string) (err error) {
+func (n *Node) Sync(repository string, statusChannel chan string) (err error) {
 	if !n.IsRoot() {
+		if n.AncestorsHaveError() {
+			statusChannel <- fmt.Sprintf("==> %v: [Warning] skipping sync due to errors on ancestor node %v\n", n.Fqdn, n.AncestorFqdnsWithErrors()[0])
+			close(statusChannel)
+			return
+		}
 		// create the API client
-		client := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
-		callReport, _, err := client.Repositories.SyncRepository(repository)
-
+		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
 		if err != nil {
-			// log.Error.Println(err)
-			close(messageChannel)
+			close(statusChannel)
 			return err
 		}
+
+		callReport, _, err := client.Repositories.SyncRepository(repository)
+		if err != nil {
+			statusChannel <- fmt.Sprintf("==> %v: [Error] %v\n", n.Fqdn, err.Error())
+			close(statusChannel)
+			return err
+		}
+
 		syncTaskId := callReport.SpawnedTasks[0].TaskId
+
 		state := "init"
 		for (state != "finished") && (state != "error") {
 
-			task, _, terr := client.Tasks.GetTask(syncTaskId)
+			task, _, err := client.Tasks.GetTask(syncTaskId)
+			if err != nil {
+				close(statusChannel)
+				return err
+			}
+
 			if task.State == "error" {
 				errorMsg := task.ProgressReport.YumImporter.Metadata.Error
-				// log.Error.Printf("%s: %s\n", n.Fqdn, errorMsg)
-				messageChannel <- fmt.Sprintf("==> %v: %v ==> %v\n", n.Fqdn, task.State, errorMsg)
-				close(messageChannel)
-				return err
+				close(statusChannel)
+				return errors.New(errorMsg)
 			}
+
 			state = task.State
 
-			messageChannel <- fmt.Sprintf("==> %v: %v\n", n.Fqdn, state)
+			statusChannel <- fmt.Sprintf("==> %v: %v\n", n.Fqdn, state)
 			time.Sleep(500 * time.Millisecond)
 
-			if terr != nil {
-				// log.Error.Println(err)
-				close(messageChannel)
-				return err
-			}
 		}
-		close(messageChannel)
+		close(statusChannel)
 	}
 	return
 }
