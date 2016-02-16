@@ -103,17 +103,19 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 }
 
 func (s *Stage) Sync(repository string) {
-	msgc := make(map[string]chan string)
+	statusChannels := make(map[string]chan string)
+
 	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
-		msgc[n.Fqdn] = make(chan string)
+
+		statusChannels[n.Fqdn] = make(chan string)
 		go func() {
 			time.Sleep(time.Millisecond)
-			for msg := range msgc[n.Fqdn] {
+			for msg := range statusChannels[n.Fqdn] {
 				fmt.Printf(msg)
 			}
 		}()
 
-		err = n.Sync(repository, msgc[n.Fqdn])
+		err = n.Sync(repository, statusChannels[n.Fqdn])
 		if err != nil {
 			return err
 		}
