@@ -344,7 +344,14 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 				sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
 				sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
 			} else {
-				fmt.Printf("%v: ############################################# missing content ##################################\n", n.Fqdn)
+				errorMsg := "Could not read the task progress"
+				err = errors.New(errorMsg)
+				sp := SyncProgress{
+					State: "error",
+					Error: err,
+				}
+				progressChannel <- sp
+				return err
 			}
 
 			progressChannel <- sp

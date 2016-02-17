@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	// "github.com/gosuri/uiprogress"
+	"github.com/gosuri/uiprogress"
 	"sync"
 	"time"
 )
@@ -49,12 +49,14 @@ func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
 
 func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 	// initialize the tree (waitgroups, prents, depth, etc)
+	bars := make(map[string]*)
 	inWg := make(map[string]*sync.WaitGroup)
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		var wg sync.WaitGroup
 		inWg[n.Fqdn] = &wg
 		inWg[n.Fqdn].Add(1)
 	})
+
 	// Set a waitgroup for synconization of compteted leafs
 	var leafsWaitGroup sync.WaitGroup
 	leafsCount := len(s.Leafs)
@@ -98,7 +100,7 @@ func (s *Stage) Sync(repository string) (err error) {
 			for sp := range progressChannel {
 				switch {
 				default:
-					fmt.Printf("%v: %v\n", n.Fqdn, sp.State)
+					fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
 				}
 			}
 		}()
