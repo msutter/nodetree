@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	"github.com/gosuri/uiprogress"
+	// "github.com/gosuri/uiprogress"
 	"sync"
 	"time"
 )
@@ -49,7 +49,6 @@ func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
 
 func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 	// initialize the tree (waitgroups, prents, depth, etc)
-	bars := make(map[string]*)
 	inWg := make(map[string]*sync.WaitGroup)
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		var wg sync.WaitGroup
