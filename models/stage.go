@@ -1,7 +1,7 @@
 package models
 
 import (
-	// "fmt"
+	"fmt"
 	// "github.com/gosuri/uiprogress"
 	"sync"
 	"time"
@@ -96,12 +96,22 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 }
 
 func (s *Stage) Sync(repository string) {
-	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
 
-		err = n.Sync(repository)
+	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
+		progressChannel := make(chan SyncProgress)
+
+		go func() {
+			for sp := range progressChannel {
+				fmt.Printf("%v: %v\n", n.Fqdn, sp.State)
+			}
+		}()
+
+		n.Sync(repository, progressChannel)
+
 		if err != nil {
 			return err
 		}
+
 		return
 	})
 }

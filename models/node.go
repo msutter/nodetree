@@ -1,11 +1,11 @@
 package models
 
 import (
+	"errors"
 	"fmt"
-	// "errors"
-	// "github.com/msutter/go-pulp/pulp"
+	"github.com/msutter/go-pulp/pulp"
 	// "github.com/msutter/nodetree/log"
-	"math/rand"
+	// "math/rand"
 	// "strings"
 	"bytes"
 	"math"
@@ -262,98 +262,104 @@ func (s *SyncProgress) SizePercent() int {
 	}
 }
 
-func (n *Node) Sync(repository string) (err error) {
+func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err error) {
+
+	defer close(progressChannel)
 
 	if !n.IsRoot() {
-		fmt.Printf("%v: %v\n", n.Fqdn, "sync")
-		randTime := time.Duration(rand.Intn(200) + 10)
-		time.Sleep(randTime * time.Millisecond)
 
+		// 	randTime := time.Duration(rand.Intn(500) + 50)
+		// 	time.Sleep(randTime * time.Millisecond)
+
+		// 	sp := SyncProgress{
+		// 		State: fmt.Sprintf("%v: %v\n", n.Fqdn, "sync"),
+		// 	}
+		// }
+
+		if n.AncestorsHaveError() {
+			sp := SyncProgress{
+				State:   "skipped",
+				Warning: fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0]),
+			}
+			progressChannel <- sp
+			time.Sleep(20 * time.Millisecond)
+			return
+		}
+		// create the API client
+		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
+		if err != nil {
+			sp := SyncProgress{
+				State: "error",
+				Error: err,
+			}
+			progressChannel <- sp
+			time.Sleep(20 * time.Millisecond)
+			return err
+		}
+
+		callReport, _, err := client.Repositories.SyncRepository(repository)
+
+		if err != nil {
+			sp := SyncProgress{
+				State: "error",
+				Error: err,
+			}
+
+			progressChannel <- sp
+			time.Sleep(20 * time.Millisecond)
+			return err
+		}
+
+		syncTaskId := callReport.SpawnedTasks[0].TaskId
+
+		state := "init"
+		for (state != "finished") && (state != "error") {
+
+			task, _, err := client.Tasks.GetTask(syncTaskId)
+			if err != nil {
+				sp := SyncProgress{
+					State: "error",
+					Error: err,
+				}
+				progressChannel <- sp
+				time.Sleep(20 * time.Millisecond)
+				// close(progressChannel)
+				return err
+			}
+
+			if task.State == "error" {
+				errorMsg := task.ProgressReport.YumImporter.Metadata.Error
+				err = errors.New(errorMsg)
+				sp := SyncProgress{
+					State: "error",
+					Error: err,
+				}
+
+				progressChannel <- sp
+				time.Sleep(20 * time.Millisecond)
+				// close(progressChannel)
+				return err
+			}
+
+			state = task.State
+			sp := SyncProgress{
+				State: state,
+			}
+
+			if task.ProgressReport.YumImporter.Content != nil {
+				sp.SizeTotal = task.ProgressReport.YumImporter.Content.SizeTotal
+				sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
+				sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
+				sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
+			} else {
+				fmt.Printf("%v: missing content\n", n.Fqdn)
+			}
+
+			progressChannel <- sp
+			time.Sleep(500 * time.Millisecond)
+
+		}
 	}
-	// 	if n.AncestorsHaveError() {
-	// 		sp := SyncProgress{
-	// 			State:   "skipped",
-	// 			Warning: fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0]),
-	// 		}
-	// 		progressChannels <- sp
-	// 		time.Sleep(20 * time.Millisecond)
-	// 		return
-	// 	}
-	// 	// create the API client
-	// 	client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
-	// 	if err != nil {
-	// 		sp := SyncProgress{
-	// 			State: "error",
-	// 			Error: err,
-	// 		}
-	// 		progressChannels <- sp
-	// 		time.Sleep(20 * time.Millisecond)
-	// 		return err
-	// 	}
-
-	// 	callReport, _, err := client.Repositories.SyncRepository(repository)
-
-	// 	if err != nil {
-	// 		sp := SyncProgress{
-	// 			State: "error",
-	// 			Error: err,
-	// 		}
-
-	// 		progressChannels <- sp
-	// 		time.Sleep(20 * time.Millisecond)
-	// 		return err
-	// 	}
-
-	// 	syncTaskId := callReport.SpawnedTasks[0].TaskId
-
-	// 	state := "init"
-	// 	for (state != "finished") && (state != "error") {
-
-	// 		task, _, err := client.Tasks.GetTask(syncTaskId)
-	// 		if err != nil {
-	// 			sp := SyncProgress{
-	// 				State: "error",
-	// 				Error: err,
-	// 			}
-	// 			progressChannels <- sp
-	// 			time.Sleep(20 * time.Millisecond)
-	// 			// close(progressChannels)
-	// 			return err
-	// 		}
-
-	// 		if task.State == "error" {
-	// 			errorMsg := task.ProgressReport.YumImporter.Metadata.Error
-	// 			err = errors.New(errorMsg)
-	// 			sp := SyncProgress{
-	// 				State: "error",
-	// 				Error: err,
-	// 			}
-
-	// 			progressChannels <- sp
-	// 			time.Sleep(20 * time.Millisecond)
-	// 			// close(progressChannels)
-	// 			return err
-	// 		}
-
-	// 		state = task.State
-	// 		sp := SyncProgress{
-	// 			State: state,
-	// 		}
-
-	// 		if task.ProgressReport.YumImporter.Content != nil {
-	// 			sp.SizeTotal = task.ProgressReport.YumImporter.Content.SizeTotal
-	// 			sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
-	// 			sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
-	// 			sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
-	// 		} else {
-	// 			fmt.Printf("%v: missing content\n", n.Fqdn)
-	// 		}
-
-	// 		progressChannels <- sp
-	// 		time.Sleep(500 * time.Millisecond)
-
-	// 	}
-	// }
 
 	return
 }
