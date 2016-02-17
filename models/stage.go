@@ -52,12 +52,14 @@ func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
 }
 
 func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
-	//  initialize the channels maps
-	inc := make(map[string]chan *Node)
-	outc := make(map[string]chan *Node)
 
-	// Initialize the tree (populate Leafs, Parents, Depth, etc...)
-	s.Init()
+	inWg := make(map[string]*sync.WaitGroup)
+
+	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
+		var wg sync.WaitGroup
+		inWg[n.Fqdn] = &wg
+		inWg[n.Fqdn].Add(1)
+	})
 
 	// Set a waitgroup for all leafs
 	var leafsWaitGroup sync.WaitGroup
@@ -66,18 +68,15 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 
 	// initialize the routines and the Depth map
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
-		// initialize the channels
-		inc[n.Fqdn] = make(chan *Node)
-		outc[n.Fqdn] = make(chan *Node)
-
-		// start the go routines
+		// initialize the waitgroup
 		go func() {
 			// Give some time to execute the main process
 			// (not sure about this. There are probebly better ways)
-			time.Sleep(time.Millisecond * 10)
+			time.Sleep(time.Millisecond * 50)
 
 			// read in channel o start
-			<-inc[n.Fqdn]
+			inWg[n.Fqdn].Wait()
+			// <-inc[n.Fqdn]
 			fmt.Printf("got in for %v\n", n.Fqdn)
 			// if !n.AncestorsHaveError() {
 			err := f(n)
@@ -96,16 +95,14 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 			// write on each children to unlock start
 			for _, child := range n.Children {
 				fmt.Printf("send in for %v\n", child.Fqdn)
-				inc[child.Fqdn] <- child.Parent
-				close(inc[child.Fqdn])
+				inWg[child.Fqdn].Done()
 			}
 
 		}()
 	})
 
 	// start the execucution on root node
-	inc[s.PulpRootNode.Fqdn] <- s.PulpRootNode
-	close(inc[s.PulpRootNode.Fqdn])
+	inWg[s.PulpRootNode.Fqdn].Done()
 
 	fmt.Printf("wait on all leafs\n")
 	leafsWaitGroup.Wait()
@@ -114,24 +111,9 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 }
 
 func (s *Stage) Sync(repository string) {
-	progressChannels := make(map[string]chan SyncProgress)
-
 	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
-		progressChannels[n.Fqdn] = make(chan SyncProgress)
 
-		go func() {
-			time.Sleep(time.Millisecond * 10)
-			for sp := range progressChannels[n.Fqdn] {
-				switch sp.State {
-				case "running", "finished":
-					fmt.Printf("%v: %v [%v/%v]\n", n.Fqdn, sp.State, sp.ItemsLeft, sp.ItemsTotal)
-				default:
-					fmt.Printf("%v: %v\n", n.Fqdn, sp.State)
-				}
-			}
-		}()
-
-		err = n.Sync(repository, progressChannels[n.Fqdn])
+		err = n.Sync(repository)
 		if err != nil {
 			return err
 		}

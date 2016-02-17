@@ -262,14 +262,12 @@ func (s *SyncProgress) SizePercent() int {
 	}
 }
 
-func (n *Node) Sync(repository string, progressChannels chan SyncProgress) (err error) {
+func (n *Node) Sync(repository string) (err error) {
 
-	// close of nil channel TODO
-	defer close(progressChannels)
-
-	randTime := time.Duration(rand.Intn(2000) + 10)
-	time.Sleep(randTime * time.Millisecond)
-	// if !n.IsRoot() {
+	if !n.IsRoot() {
+		randTime := time.Duration(rand.Intn(2000) + 100)
+		time.Sleep(randTime * time.Millisecond)
+	}
 	// 	if n.AncestorsHaveError() {
 	// 		sp := SyncProgress{
 	// 			State:   "skipped",
