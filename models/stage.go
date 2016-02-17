@@ -48,23 +48,19 @@ func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
 }
 
 func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
-
-	inWg := make(map[string]*sync.WaitGroup)
 	// initialize the tree (waitgroups, prents, depth, etc)
+	inWg := make(map[string]*sync.WaitGroup)
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		var wg sync.WaitGroup
 		inWg[n.Fqdn] = &wg
 		inWg[n.Fqdn].Add(1)
 	})
-
 	// Set a waitgroup for synconization of compteted leafs
 	var leafsWaitGroup sync.WaitGroup
 	leafsCount := len(s.Leafs)
 	leafsWaitGroup.Add(leafsCount)
-
-	// initialize the routines and the Depth map
+	// Walk the tree with syncronization
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
-
 		go func() {
 			time.Sleep(time.Millisecond * 50)
 			// Wait
@@ -86,34 +82,34 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 
 		}()
 	})
-
 	// start the execucution on root node
 	inWg[s.PulpRootNode.Fqdn].Done()
-
 	// Wait on all leafs to complete
 	leafsWaitGroup.Wait()
-
 }
 
-func (s *Stage) Sync(repository string) {
-
+func (s *Stage) Sync(repository string) (err error) {
+	// Use the synced walk
 	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
+		// Create a progress channel
 		progressChannel := make(chan SyncProgress)
-
+		// Read the progressChannel until it's closed
 		go func() {
 			for sp := range progressChannel {
-				fmt.Printf("%v: %v\n", n.Fqdn, sp.State)
+				switch {
+				default:
+					fmt.Printf("%v: %v\n", n.Fqdn, sp.State)
+				}
 			}
 		}()
-
+		// Execute the sync
 		n.Sync(repository, progressChannel)
-
 		if err != nil {
 			return err
 		}
-
 		return
 	})
+	return
 }
 
 func (s *Stage) Show() {

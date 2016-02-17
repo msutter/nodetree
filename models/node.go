@@ -267,15 +267,6 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 	defer close(progressChannel)
 
 	if !n.IsRoot() {
-
-		// 	randTime := time.Duration(rand.Intn(500) + 50)
-		// 	time.Sleep(randTime * time.Millisecond)
-
-		// 	sp := SyncProgress{
-		// 		State: fmt.Sprintf("%v: %v\n", n.Fqdn, "sync"),
-		// 	}
-		// }
-
 		if n.AncestorsHaveError() {
 			sp := SyncProgress{
 				State:   "skipped",
@@ -313,6 +304,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 		syncTaskId := callReport.SpawnedTasks[0].TaskId
 
 		state := "init"
+
 		for (state != "finished") && (state != "error") {
 
 			task, _, err := client.Tasks.GetTask(syncTaskId)
@@ -352,7 +344,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 				sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
 				sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
 			} else {
-				fmt.Printf("%v: missing content\n", n.Fqdn)
+				fmt.Printf("%v: ############################################# missing content ##################################\n", n.Fqdn)
 			}
 
 			progressChannel <- sp
