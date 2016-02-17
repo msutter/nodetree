@@ -267,13 +267,13 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 	defer close(progressChannel)
 
 	if !n.IsRoot() {
+
 		if n.AncestorsHaveError() {
 			sp := SyncProgress{
 				State:   "skipped",
 				Warning: fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0]),
 			}
 			progressChannel <- sp
-			time.Sleep(20 * time.Millisecond)
 			return
 		}
 		// create the API client
@@ -284,7 +284,6 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 				Error: err,
 			}
 			progressChannel <- sp
-			time.Sleep(20 * time.Millisecond)
 			return err
 		}
 
@@ -297,7 +296,6 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 			}
 
 			progressChannel <- sp
-			time.Sleep(20 * time.Millisecond)
 			return err
 		}
 
@@ -314,8 +312,6 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 					Error: err,
 				}
 				progressChannel <- sp
-				time.Sleep(20 * time.Millisecond)
-				// close(progressChannel)
 				return err
 			}
 
@@ -328,8 +324,6 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 				}
 
 				progressChannel <- sp
-				time.Sleep(20 * time.Millisecond)
-				// close(progressChannel)
 				return err
 			}
 
