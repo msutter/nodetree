@@ -265,8 +265,10 @@ func (s *SyncProgress) SizePercent() int {
 func (n *Node) Sync(repository string) (err error) {
 
 	if !n.IsRoot() {
-		randTime := time.Duration(rand.Intn(2000) + 100)
+		fmt.Printf("%v: %v\n", n.Fqdn, "sync")
+		randTime := time.Duration(rand.Intn(200) + 10)
 		time.Sleep(randTime * time.Millisecond)
+
 	}
 	// 	if n.AncestorsHaveError() {
 	// 		sp := SyncProgress{

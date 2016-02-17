@@ -1,7 +1,7 @@
 package models
 
 import (
-	"fmt"
+	// "fmt"
 	// "github.com/gosuri/uiprogress"
 	"sync"
 	"time"
@@ -38,10 +38,6 @@ func (s *Stage) NodeTreeWalker(node *Node, f func(*Node)) {
 	}
 }
 
-func (s *Stage) Init() {
-	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {})
-}
-
 func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		if n.Fqdn == nodeFqdn {
@@ -54,47 +50,37 @@ func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
 func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 
 	inWg := make(map[string]*sync.WaitGroup)
-
+	// initialize the tree (waitgroups, prents, depth, etc)
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		var wg sync.WaitGroup
 		inWg[n.Fqdn] = &wg
 		inWg[n.Fqdn].Add(1)
 	})
 
-	// Set a waitgroup for all leafs
+	// Set a waitgroup for synconization of compteted leafs
 	var leafsWaitGroup sync.WaitGroup
 	leafsCount := len(s.Leafs)
 	leafsWaitGroup.Add(leafsCount)
 
 	// initialize the routines and the Depth map
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
-		// initialize the waitgroup
-		go func() {
-			// Give some time to execute the main process
-			// (not sure about this. There are probebly better ways)
-			time.Sleep(time.Millisecond * 50)
 
-			// read in channel o start
+		go func() {
+			time.Sleep(time.Millisecond * 50)
+			// Wait
 			inWg[n.Fqdn].Wait()
-			// <-inc[n.Fqdn]
-			fmt.Printf("got in for %v\n", n.Fqdn)
-			// if !n.AncestorsHaveError() {
+			// execute the function
 			err := f(n)
 			if err != nil {
 				// log.Error.Println(err)
 				n.Errors = append(n.Errors, err)
 			}
-
-			// Write the out channel to finish the leafs
+			// Set done on waitgroup
 			if n.IsLeaf() {
-				fmt.Printf("leaf done before on %v\n", n.Fqdn)
 				leafsWaitGroup.Done()
-				fmt.Printf("leaf done after on %v\n", n.Fqdn)
 			}
-
-			// write on each children to unlock start
+			// set Done on each child unlock start
 			for _, child := range n.Children {
-				fmt.Printf("send in for %v\n", child.Fqdn)
 				inWg[child.Fqdn].Done()
 			}
 
@@ -104,9 +90,8 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 	// start the execucution on root node
 	inWg[s.PulpRootNode.Fqdn].Done()
 
-	fmt.Printf("wait on all leafs\n")
+	// Wait on all leafs to complete
 	leafsWaitGroup.Wait()
-	fmt.Printf("done all leafs\n")
 
 }
 
