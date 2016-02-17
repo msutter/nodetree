@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	// "github.com/gosuri/uiprogress"
+	"sync"
 	"time"
 )
 
@@ -37,6 +38,10 @@ func (s *Stage) NodeTreeWalker(node *Node, f func(*Node)) {
 	}
 }
 
+func (s *Stage) Init() {
+	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {})
+}
+
 func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		if n.Fqdn == nodeFqdn {
@@ -50,14 +55,21 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 	//  initialize the channels maps
 	inc := make(map[string]chan *Node)
 	outc := make(map[string]chan *Node)
-	// reset the Leafs slice
-	s.Leafs = s.Leafs[:0]
+
+	// Initialize the tree (populate Leafs, Parents, Depth, etc...)
+	s.Init()
+
+	// Set a waitgroup for all leafs
+	var leafsWaitGroup sync.WaitGroup
+	leafsCount := len(s.Leafs)
+	leafsWaitGroup.Add(leafsCount)
 
 	// initialize the routines and the Depth map
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		// initialize the channels
 		inc[n.Fqdn] = make(chan *Node)
 		outc[n.Fqdn] = make(chan *Node)
+
 		// start the go routines
 		go func() {
 			// Give some time to execute the main process
@@ -66,28 +78,26 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 
 			// read in channel o start
 			<-inc[n.Fqdn]
-
+			fmt.Printf("got in for %v\n", n.Fqdn)
 			// if !n.AncestorsHaveError() {
 			err := f(n)
 			if err != nil {
 				// log.Error.Println(err)
 				n.Errors = append(n.Errors, err)
 			}
-			// } else {
-			// 	// log.Warning.Printf("Skipping node %v due to errors on folowing Ancestor: %v", n.Fqdn, n.AncestorFqdnsWithErrors())
-			// }
-
-			// write on each children to unlock start
-			for _, child := range n.Children {
-				child.Parent = n
-				inc[child.Fqdn] <- child.Parent
-				close(inc[child.Fqdn])
-			}
 
 			// Write the out channel to finish the leafs
 			if n.IsLeaf() {
-				outc[n.Fqdn] <- n
-				close(outc[n.Fqdn])
+				fmt.Printf("leaf done before on %v\n", n.Fqdn)
+				leafsWaitGroup.Done()
+				fmt.Printf("leaf done after on %v\n", n.Fqdn)
+			}
+
+			// write on each children to unlock start
+			for _, child := range n.Children {
+				fmt.Printf("send in for %v\n", child.Fqdn)
+				inc[child.Fqdn] <- child.Parent
+				close(inc[child.Fqdn])
 			}
 
 		}()
@@ -97,9 +107,10 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 	inc[s.PulpRootNode.Fqdn] <- s.PulpRootNode
 	close(inc[s.PulpRootNode.Fqdn])
 
-	for _, leaf := range s.Leafs {
-		<-outc[leaf.Fqdn]
-	}
+	fmt.Printf("wait on all leafs\n")
+	leafsWaitGroup.Wait()
+	fmt.Printf("done all leafs\n")
+
 }
 
 func (s *Stage) Sync(repository string) {
@@ -107,6 +118,7 @@ func (s *Stage) Sync(repository string) {
 
 	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
 		progressChannels[n.Fqdn] = make(chan SyncProgress)
+
 		go func() {
 			time.Sleep(time.Millisecond * 10)
 			for sp := range progressChannels[n.Fqdn] {
@@ -118,6 +130,7 @@ func (s *Stage) Sync(repository string) {
 				}
 			}
 		}()
+
 		err = n.Sync(repository, progressChannels[n.Fqdn])
 		if err != nil {
 			return err

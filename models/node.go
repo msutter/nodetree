@@ -1,11 +1,11 @@
 package models
 
 import (
-	"errors"
 	"fmt"
-	"github.com/msutter/go-pulp/pulp"
+	// "errors"
+	// "github.com/msutter/go-pulp/pulp"
 	// "github.com/msutter/nodetree/log"
-	// "math/rand"
+	"math/rand"
 	// "strings"
 	"bytes"
 	"math"
@@ -263,89 +263,98 @@ func (s *SyncProgress) SizePercent() int {
 }
 
 func (n *Node) Sync(repository string, progressChannels chan SyncProgress) (err error) {
-	if !n.IsRoot() {
-		if n.AncestorsHaveError() {
-			sp := SyncProgress{
-				State:   "skipped",
-				Warning: fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0]),
-			}
-			progressChannels <- sp
-			close(progressChannels)
-			return
-		}
-		// create the API client
-		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
-		if err != nil {
-			sp := SyncProgress{
-				State: "error",
-				Error: err,
-			}
-			progressChannels <- sp
-			close(progressChannels)
-			return err
-		}
 
-		callReport, _, err := client.Repositories.SyncRepository(repository)
-		if err != nil {
-			sp := SyncProgress{
-				State: "error",
-				Error: err,
-			}
+	// close of nil channel TODO
+	defer close(progressChannels)
 
-			progressChannels <- sp
-			close(progressChannels)
-			return err
-		}
+	randTime := time.Duration(rand.Intn(2000) + 10)
+	time.Sleep(randTime * time.Millisecond)
+	// if !n.IsRoot() {
+	// 	if n.AncestorsHaveError() {
+	// 		sp := SyncProgress{
+	// 			State:   "skipped",
+	// 			Warning: fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0]),
+	// 		}
+	// 		progressChannels <- sp
+	// 		time.Sleep(20 * time.Millisecond)
+	// 		return
+	// 	}
+	// 	// create the API client
+	// 	client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
+	// 	if err != nil {
+	// 		sp := SyncProgress{
+	// 			State: "error",
+	// 			Error: err,
+	// 		}
+	// 		progressChannels <- sp
+	// 		time.Sleep(20 * time.Millisecond)
+	// 		return err
+	// 	}
 
-		syncTaskId := callReport.SpawnedTasks[0].TaskId
+	// 	callReport, _, err := client.Repositories.SyncRepository(repository)
 
-		state := "init"
-		for (state != "finished") && (state != "error") {
+	// 	if err != nil {
+	// 		sp := SyncProgress{
+	// 			State: "error",
+	// 			Error: err,
+	// 		}
 
-			task, _, err := client.Tasks.GetTask(syncTaskId)
-			if err != nil {
-				sp := SyncProgress{
-					State: "error",
-					Error: err,
-				}
-				progressChannels <- sp
-				close(progressChannels)
-				return err
-			}
+	// 		progressChannels <- sp
+	// 		time.Sleep(20 * time.Millisecond)
+	// 		return err
+	// 	}
 
-			if task.State == "error" {
-				errorMsg := task.ProgressReport.YumImporter.Metadata.Error
-				err = errors.New(errorMsg)
-				sp := SyncProgress{
-					State: "error",
-					Error: err,
-				}
+	// 	syncTaskId := callReport.SpawnedTasks[0].TaskId
 
-				progressChannels <- sp
-				close(progressChannels)
-				return err
-			}
+	// 	state := "init"
+	// 	for (state != "finished") && (state != "error") {
 
-			state = task.State
-			sp := SyncProgress{
-				State: state,
-			}
+	// 		task, _, err := client.Tasks.GetTask(syncTaskId)
+	// 		if err != nil {
+	// 			sp := SyncProgress{
+	// 				State: "error",
+	// 				Error: err,
+	// 			}
+	// 			progressChannels <- sp
+	// 			time.Sleep(20 * time.Millisecond)
+	// 			// close(progressChannels)
+	// 			return err
+	// 		}
 
-			if task.ProgressReport.YumImporter.Content != nil {
-				sp.SizeTotal = task.ProgressReport.YumImporter.Content.SizeTotal
-				sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
-				sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
-				sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
-			} else {
-				fmt.Println("%s: missing content", n.Fqdn)
-			}
+	// 		if task.State == "error" {
+	// 			errorMsg := task.ProgressReport.YumImporter.Metadata.Error
+	// 			err = errors.New(errorMsg)
+	// 			sp := SyncProgress{
+	// 				State: "error",
+	// 				Error: err,
+	// 			}
 
-			progressChannels <- sp
-			time.Sleep(500 * time.Millisecond)
+	// 			progressChannels <- sp
+	// 			time.Sleep(20 * time.Millisecond)
+	// 			// close(progressChannels)
+	// 			return err
+	// 		}
 
-		}
-		close(progressChannels)
-	}
+	// 		state = task.State
+	// 		sp := SyncProgress{
+	// 			State: state,
+	// 		}
+
+	// 		if task.ProgressReport.YumImporter.Content != nil {
+	// 			sp.SizeTotal = task.ProgressReport.YumImporter.Content.SizeTotal
+	// 			sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
+	// 			sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
+	// 			sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
+	// 		} else {
+	// 			fmt.Printf("%v: missing content\n", n.Fqdn)
+	// 		}
+
+	// 		progressChannels <- sp
+	// 		time.Sleep(500 * time.Millisecond)
+
+	// 	}
+	// }
+
 	return
 }
 
