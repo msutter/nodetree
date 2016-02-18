@@ -63,48 +63,18 @@ Filters can be set on Fqdns and tags.`,
 
 		// Create a progress channel
 		progressChannel := make(chan models.SyncProgress)
-		// create a state map
-		// nodeStates := make(map[string]string)
-		// var wg sync.WaitGroup
-		// wg.Add(1)
-		// go func() {
-		// 	defer wg.Done()
-		// 	for sp := range progressChannel {
-		// 		switch sp.State {
-		// 		case "skipped":
-		// 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-		// 			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
-		// 			tm.Flush()
-		// 		case "error":
-		// 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-		// 			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
-		// 			tm.Flush()
-		// 		case "running":
-		// 			// only output state changes
-		// 			if nodeStates[sp.Node.Fqdn] != sp.State {
-		// 				line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-		// 				tm.Printf(tm.Color(line, tm.BLUE))
-		// 				tm.Flush()
-		// 			}
-		// 			nodeStates[sp.Node.Fqdn] = sp.State
-		// 		case "finished":
-		// 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-		// 			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
-		// 			tm.Flush()
-		// 		}
-		// 	}
-		// }()
 
-		if !pSilent {
+		if pSilent {
+			go RenderSilentView(progressChannel)
+		} else {
 			if pQuiet {
-				go RenderSimpleView(progressChannel)
+				go RenderQuietView(progressChannel)
 			} else {
 				go RenderProgressView(progressChannel)
 			}
 		}
 
 		var err models.SyncErrors
-
 		if pAll {
 			err = currentStage.Sync(pRepository, progressChannel)
 		} else {
@@ -112,11 +82,14 @@ Filters can be set on Fqdns and tags.`,
 			err = filteredStage.Sync(pRepository, progressChannel)
 		}
 
-		// wait on the routine to finish
-		// wg.Wait()
-
 		if err.Any() {
-			RenderErrorSummary(err)
+			if !pSilent {
+				if pQuiet {
+					RenderErrorSummary(err)
+				} else {
+					RenderErrorSummary(err)
+				}
+			}
 		}
 
 	},
@@ -170,7 +143,7 @@ func RenderProgressView(progressChannel chan models.SyncProgress) {
 }
 
 // simple view. No in place updates
-func RenderSimpleView(progressChannel chan models.SyncProgress) {
+func RenderQuietView(progressChannel chan models.SyncProgress) {
 	nodeStates := make(map[string]string)
 	for sp := range progressChannel {
 		switch sp.State {
@@ -195,6 +168,14 @@ func RenderSimpleView(progressChannel chan models.SyncProgress) {
 			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
 			tm.Flush()
 		}
+	}
+}
+
+// silent view
+func RenderSilentView(progressChannel chan models.SyncProgress) {
+	for sp := range progressChannel {
+		// do nothing
+		_ = sp
 	}
 }
 
