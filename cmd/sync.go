@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"github.com/msutter/nodetree/models"
 	"github.com/spf13/cobra"
-	"sync"
+	// "sync"
 	// "time"
 
 	tm "github.com/buger/goterm"
@@ -49,7 +49,6 @@ Filters can be set on Fqdns and tags.`,
 		// check for flags
 		if len(pFqdns) == 0 && len(pTags) == 0 && !pAll {
 			fmt.Printf("\nWARNING: This will sync the complete tree for the '%v' stage!\n", args[0])
-			fmt.Println("")
 			currentStage.Show()
 			fmt.Println("")
 			fmt.Printf("you can get rid of this warning by setting the --all flag\n")
@@ -65,36 +64,44 @@ Filters can be set on Fqdns and tags.`,
 		// Create a progress channel
 		progressChannel := make(chan models.SyncProgress)
 		// create a state map
-		nodeStates := make(map[string]string)
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for sp := range progressChannel {
-				switch sp.State {
-				case "skipped":
-					line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-					tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
-					tm.Flush()
-				case "error":
-					line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-					tm.Printf(tm.Color(tm.Bold(line), tm.RED))
-					tm.Flush()
-				case "running":
-					// only output state changes
-					if nodeStates[sp.Node.Fqdn] != sp.State {
-						line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-						tm.Printf(tm.Color(line, tm.BLUE))
-						tm.Flush()
-					}
-					nodeStates[sp.Node.Fqdn] = sp.State
-				case "finished":
-					line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-					tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
-					tm.Flush()
-				}
+		// nodeStates := make(map[string]string)
+		// var wg sync.WaitGroup
+		// wg.Add(1)
+		// go func() {
+		// 	defer wg.Done()
+		// 	for sp := range progressChannel {
+		// 		switch sp.State {
+		// 		case "skipped":
+		// 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+		// 			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
+		// 			tm.Flush()
+		// 		case "error":
+		// 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+		// 			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
+		// 			tm.Flush()
+		// 		case "running":
+		// 			// only output state changes
+		// 			if nodeStates[sp.Node.Fqdn] != sp.State {
+		// 				line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+		// 				tm.Printf(tm.Color(line, tm.BLUE))
+		// 				tm.Flush()
+		// 			}
+		// 			nodeStates[sp.Node.Fqdn] = sp.State
+		// 		case "finished":
+		// 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+		// 			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
+		// 			tm.Flush()
+		// 		}
+		// 	}
+		// }()
+
+		if !pSilent {
+			if pQuiet {
+				go RenderSimpleView(progressChannel)
+			} else {
+				go RenderProgressView(progressChannel)
 			}
-		}()
+		}
 
 		var err models.SyncErrors
 
@@ -106,7 +113,7 @@ Filters can be set on Fqdns and tags.`,
 		}
 
 		// wait on the routine to finish
-		wg.Wait()
+		// wg.Wait()
 
 		if err.Any() {
 			RenderErrorSummary(err)
@@ -130,6 +137,65 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// syncCmd.Flags().StringSlice("fqdns", []string{}, "Filter on Fqdns")
+}
+
+// Progress view with colors and inplace update
+func RenderProgressView(progressChannel chan models.SyncProgress) {
+	nodeStates := make(map[string]string)
+
+	for sp := range progressChannel {
+		switch sp.State {
+		case "skipped":
+			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
+			tm.Flush()
+		case "error":
+			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
+			tm.Flush()
+		case "running":
+			// only output state changes
+			if nodeStates[sp.Node.Fqdn] != sp.State {
+				line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+				tm.Printf(tm.Color(line, tm.BLUE))
+				tm.Flush()
+			}
+			nodeStates[sp.Node.Fqdn] = sp.State
+		case "finished":
+			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
+			tm.Flush()
+		}
+	}
+}
+
+// simple view. No in place updates
+func RenderSimpleView(progressChannel chan models.SyncProgress) {
+	nodeStates := make(map[string]string)
+	for sp := range progressChannel {
+		switch sp.State {
+		case "skipped":
+			line := fmt.Sprintf("%v [%v]", sp.Node.Fqdn, sp.State)
+			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
+			tm.Flush()
+		case "error":
+			line := fmt.Sprintf("%v [%v]", sp.Node.Fqdn, sp.State)
+			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
+			tm.Flush()
+		case "running":
+			// only output state changes
+			if nodeStates[sp.Node.Fqdn] != sp.State {
+				line := fmt.Sprintf("%v [%v]", sp.Node.Fqdn, sp.State)
+				tm.Printf(tm.Color(line, tm.BLUE))
+				tm.Flush()
+			}
+			nodeStates[sp.Node.Fqdn] = sp.State
+		case "finished":
+			line := fmt.Sprintf("%v [%v]", sp.Node.Fqdn, sp.State)
+			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
+			tm.Flush()
+		}
+	}
 }
 
 func RenderErrorSummary(s models.SyncErrors) {
