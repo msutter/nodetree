@@ -265,21 +265,21 @@ func (s *SyncProgress) SizePercent() int {
 
 func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err error) {
 
-	// give some between writes on progressChannel
-	time.Sleep(time.Millisecond * 50)
-
 	defer close(progressChannel)
 
 	if !n.IsRoot() {
 
 		if n.AncestorsHaveError() {
+			// give some between writes on progressChannel
+			time.Sleep(time.Millisecond * 100)
+			errorMsg := fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0])
+			err = errors.New(errorMsg)
 			sp := SyncProgress{
-				State:   "skipped",
-				Warning: fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0]),
+				State: "skipped",
+				Error: err,
 			}
-
 			progressChannel <- sp
-			return
+			return err
 		}
 		// create the API client
 		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
