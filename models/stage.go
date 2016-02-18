@@ -153,7 +153,6 @@ func (s *Stage) Show() {
 
 // get a filtered stage.
 func (s *Stage) Filter(nodeFqdns []string, nodeTags []string) (filteredStage *Stage) {
-	s.Init()
 	filteredStage = s
 	s.NodeTreeWalker(filteredStage.PulpRootNode, func(n *Node) {
 		childsToKeep := []*Node{}
