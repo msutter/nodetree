@@ -73,23 +73,23 @@ Filters can be set on Fqdns and tags.`,
 			for sp := range progressChannel {
 				switch sp.State {
 				case "skipped":
-					line := fmt.Sprintf("%v %v", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+					line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
 					tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
 					tm.Flush()
 				case "error":
-					line := fmt.Sprintf("%v %v", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+					line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
 					tm.Printf(tm.Color(tm.Bold(line), tm.RED))
 					tm.Flush()
 				case "running":
 					// only output state changes
 					if nodeStates[sp.Node.Fqdn] != sp.State {
-						line := fmt.Sprintf("%v %v", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+						line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
 						tm.Printf(tm.Color(line, tm.BLUE))
 						tm.Flush()
 					}
 					nodeStates[sp.Node.Fqdn] = sp.State
 				case "finished":
-					line := fmt.Sprintf("%v %v", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+					line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
 					tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
 					tm.Flush()
 				}
@@ -105,12 +105,11 @@ Filters can be set on Fqdns and tags.`,
 			err = filteredStage.Sync(pRepository, progressChannel)
 		}
 
+		// wait on the routine to finish
 		wg.Wait()
+
 		if err.Any() {
-			fmt.Printf("\n")
-			fmt.Printf("Error Summary:\n")
-			fmt.Printf("\n")
-			fmt.Println(err.Error())
+			RenderErrorSummary(err)
 		}
 
 	},
@@ -131,4 +130,24 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// syncCmd.Flags().StringSlice("fqdns", []string{}, "Filter on Fqdns")
+}
+
+func RenderErrorSummary(s models.SyncErrors) {
+	titleLine := fmt.Sprintf("Found errors on %v nodes:", len(s.Nodes))
+	tm.Printf("\n")
+	tm.Printf(tm.Bold(titleLine))
+	tm.Printf("\n")
+	tm.Printf("\n")
+	for _, n := range s.Nodes {
+		tm.Printf(tm.Color(tm.Bold(n.Fqdn), tm.RED))
+		tm.Printf("\n")
+		for _, e := range n.Errors {
+			tm.Printf(" - ")
+			tm.Printf(e.Error())
+			tm.Printf("\n")
+		}
+		// tm.Printf("\n")
+	}
+	tm.Flush()
+
 }
