@@ -267,11 +267,10 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 
 	defer close(progressChannel)
 
+	time.Sleep(time.Millisecond * 100)
 	if !n.IsRoot() {
-
 		if n.AncestorsHaveError() {
 			// give some between writes on progressChannel
-			time.Sleep(time.Millisecond * 100)
 			errorMsg := fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0])
 			err = errors.New(errorMsg)
 			sp := SyncProgress{
