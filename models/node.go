@@ -309,6 +309,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 
 		state := "init"
 
+	PROGRESS_LOOP:
 		for (state != "finished") && (state != "error") {
 
 			task, _, err := client.Tasks.GetTask(syncTaskId)
@@ -346,15 +347,17 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 				sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
 				sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
 			} else {
-				errorMsg := "Could not read the task progress"
-				err = errors.New(errorMsg)
-				n.Errors = append(n.Errors, err)
-				sp := SyncProgress{
-					State: "error",
-					Error: err,
-				}
-				progressChannel <- sp
-				return err
+				// if task response is missing attributes, ignore and continue
+				continue PROGRESS_LOOP
+				// errorMsg := "Could not read the task progress"
+				// err = errors.New(errorMsg)
+				// n.Errors = append(n.Errors, err)
+				// sp := SyncProgress{
+				// 	State: "error",
+				// 	Error: err,
+				// }
+				// progressChannel <- sp
+				// return err
 			}
 
 			progressChannel <- sp

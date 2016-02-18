@@ -123,7 +123,7 @@ func (s *Stage) Sync(repository string) (err error) {
 				case "running":
 					if state != sp.State {
 						line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
-						tm.Printf(tm.Color(line, tm.YELLOW))
+						tm.Printf(tm.Color(line, tm.BLUE))
 						tm.Flush()
 					}
 					state = sp.State
