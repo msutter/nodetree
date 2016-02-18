@@ -11,6 +11,7 @@ type Stage struct {
 	Name         string
 	PulpRootNode *Node
 	Leafs        []*Node
+	Nodes        []*Node
 }
 
 // Matches the given fqdn?
@@ -23,19 +24,30 @@ func (s Stage) MatchName(name string) bool {
 }
 
 func (s *Stage) NodeTreeWalker(node *Node, f func(*Node)) {
-	if node.IsLeaf() {
-		s.Leafs = append(s.Leafs, node)
-	}
-	// set the leafs
 	f(node)
 	for _, n := range node.Children {
-		// set the depth
-		n.Depth = node.Depth + 1
-		// set the parent node
-		n.Parent = node
-		// resurse
 		s.NodeTreeWalker(n, f)
 	}
+}
+
+func (s *Stage) Init() {
+	pos := 1
+	s.NodeTreeWalker(s.PulpRootNode, func(node *Node) {
+		s.Nodes = append(s.Nodes, node)
+		// set treePosition
+		node.TreePosition = pos
+		pos++
+		// set the leafs
+		if node.IsLeaf() {
+			s.Leafs = append(s.Leafs, node)
+		}
+		for _, n := range node.Children {
+			// set the depth
+			n.Depth = node.Depth + 1
+			// set the parent node
+			n.Parent = node
+		}
+	})
 }
 
 func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
@@ -48,6 +60,7 @@ func (s *Stage) GetNodeByFqdn(nodeFqdn string) (node *Node) {
 }
 
 func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
+	s.Init()
 	// initialize the tree (waitgroups, prents, depth, etc)
 	inWg := make(map[string]*sync.WaitGroup)
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
@@ -114,6 +127,7 @@ func (s *Stage) Sync(repository string) (err error) {
 }
 
 func (s *Stage) Show() {
+	s.Init()
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		n.Show()
 	})
@@ -121,6 +135,7 @@ func (s *Stage) Show() {
 
 // get a filtered stage.
 func (s *Stage) Filter(nodeFqdns []string, nodeTags []string) (filteredStage *Stage) {
+	s.Init()
 	filteredStage = s
 	s.NodeTreeWalker(filteredStage.PulpRootNode, func(n *Node) {
 		childsToKeep := []*Node{}

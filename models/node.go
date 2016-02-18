@@ -13,15 +13,16 @@ import (
 )
 
 type Node struct {
-	Fqdn      string
-	ApiUser   string
-	ApiPasswd string
-	Tags      []string
-	Parent    *Node
-	Children  []*Node
-	SyncPath  []string
-	Depth     int
-	Errors    []error
+	Fqdn         string
+	ApiUser      string
+	ApiPasswd    string
+	Tags         []string
+	Parent       *Node
+	Children     []*Node
+	SyncPath     []string
+	Depth        int
+	TreePosition int
+	Errors       []error
 }
 
 // Matches the given fqdn?
@@ -358,7 +359,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 }
 
 func (n *Node) Show() (err error) {
-	fmt.Printf(n.GetTreeRaw(n.Fqdn))
+	fmt.Println(n.GetTreeRaw(n.Fqdn))
 	return nil
 }
 
