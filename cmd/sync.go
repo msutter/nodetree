@@ -16,10 +16,17 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/msutter/nodetree/models"
 	"github.com/spf13/cobra"
+	"sync"
+	// "time"
+
+	tm "github.com/buger/goterm"
 )
 
-var repository string
+var pRepository string
+var pQuiet bool
+var pSilent bool
 
 // syncCmd represents the sync command
 var syncCmd = &cobra.Command{
@@ -33,7 +40,7 @@ Filters can be set on Fqdns and tags.`,
 			ErrorExitWithUsage(cmd, "sync needs a name for the stage")
 		}
 
-		if repository == "" {
+		if pRepository == "" {
 			ErrorExitWithUsage(cmd, "sync needs a repository name")
 		}
 
@@ -55,18 +62,65 @@ Filters can be set on Fqdns and tags.`,
 			}
 		}
 
+		// Create a progress channel
+		progressChannel := make(chan models.SyncProgress)
+		// create a state map
+		nodeStates := make(map[string]string)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for sp := range progressChannel {
+				switch sp.State {
+				case "skipped":
+					line := fmt.Sprintf("%v %v", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+					tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
+					tm.Flush()
+				case "error":
+					line := fmt.Sprintf("%v %v", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+					tm.Printf(tm.Color(tm.Bold(line), tm.RED))
+					tm.Flush()
+				case "running":
+					// only output state changes
+					if nodeStates[sp.Node.Fqdn] != sp.State {
+						line := fmt.Sprintf("%v %v", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+						tm.Printf(tm.Color(line, tm.BLUE))
+						tm.Flush()
+					}
+					nodeStates[sp.Node.Fqdn] = sp.State
+				case "finished":
+					line := fmt.Sprintf("%v %v", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
+					tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
+					tm.Flush()
+				}
+			}
+		}()
+
+		var err models.SyncErrors
+
 		if pAll {
-			currentStage.Sync(repository)
+			err = currentStage.Sync(pRepository, progressChannel)
 		} else {
 			filteredStage := currentStage.Filter(pFqdns, pTags)
-			filteredStage.Sync(repository)
+			err = filteredStage.Sync(pRepository, progressChannel)
 		}
+
+		wg.Wait()
+		if err.Any() {
+			fmt.Printf("\n")
+			fmt.Printf("Error Summary:\n")
+			fmt.Printf("\n")
+			fmt.Println(err.Error())
+		}
+
 	},
 }
 
 func init() {
 	pulpCmd.AddCommand(syncCmd)
-	syncCmd.Flags().StringVarP(&repository, "repository", "r", "", "the repository to be synced.")
+	syncCmd.Flags().StringVarP(&pRepository, "repository", "r", "", "the repository to be synced.")
+	syncCmd.Flags().BoolVarP(&pQuiet, "quiet", "q", false, "simple output")
+	syncCmd.Flags().BoolVarP(&pSilent, "silent", "s", false, "no output")
 
 	// Here you will define your flags and configuration settings.
 

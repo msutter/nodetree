@@ -1,8 +1,7 @@
 package models
 
 import (
-	"fmt"
-	tm "github.com/buger/goterm"
+	// "fmt"
 	"sync"
 	"time"
 )
@@ -80,11 +79,7 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 			// Wait
 			inWg[n.Fqdn].Wait()
 			// execute the function
-			err := f(n)
-			if err != nil {
-				// log.Error.Println(err)
-				n.Errors = append(n.Errors, err)
-			}
+			f(n)
 			// Set done on waitgroup
 			if n.IsLeaf() {
 				leafsWaitGroup.Done()
@@ -102,45 +97,22 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 	leafsWaitGroup.Wait()
 }
 
-func (s *Stage) Sync(repository string) (err error) {
+func (s *Stage) Sync(repository string, progressChannel chan SyncProgress) (syncErrors SyncErrors) {
+	defer close(progressChannel)
+
 	// Use the synced walk
-	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
-		// Create a progress channel
-		progressChannel := make(chan SyncProgress)
-		// Read the progressChannel for this node until it's closed
-		go func() {
-			state := "init"
-			for sp := range progressChannel {
-				switch sp.State {
-				case "skipped":
-					line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
-					tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
-					tm.Flush()
-				case "error":
-					line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
-					tm.Printf(tm.Color(tm.Bold(line), tm.RED))
-					tm.Flush()
-				case "running":
-					if state != sp.State {
-						line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
-						tm.Printf(tm.Color(line, tm.BLUE))
-						tm.Flush()
-					}
-					state = sp.State
-				case "finished":
-					line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
-					tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
-					tm.Flush()
-				}
-			}
-		}()
+	s.SyncedNodeTreeWalker(func(n *Node) (serr error) {
 		// Execute the sync
-		n.Sync(repository, progressChannel)
-		if err != nil {
-			return err
+		serr = n.Sync(repository, progressChannel)
+		if serr != nil {
+			syncErrors.Nodes = append(syncErrors.Nodes, n)
 		}
 		return
 	})
+
+	if syncErrors.Any() {
+		return syncErrors
+	}
 	return
 }
 

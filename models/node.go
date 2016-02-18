@@ -1,14 +1,10 @@
 package models
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/msutter/go-pulp/pulp"
-	// "github.com/msutter/nodetree/log"
-	// "math/rand"
-	// "strings"
-	"bytes"
-	"math"
 	"time"
 )
 
@@ -228,54 +224,15 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 	return returnValue
 }
 
-type SyncProgress struct {
-	State      string
-	SizeTotal  int
-	SizeLeft   int
-	ItemsTotal int
-	ItemsLeft  int
-	Warning    string
-	Error      error
-}
-
-func (s *SyncProgress) ItemsDone() int {
-	return s.ItemsTotal - s.ItemsLeft
-}
-
-func (s *SyncProgress) ItemsPercent() int {
-	if s.ItemsTotal == 0 {
-		return 100
-	} else {
-		return int(math.Floor(float64(s.ItemsDone()) / float64(s.ItemsTotal) * float64(100)))
-
-	}
-}
-
-func (s *SyncProgress) SizeDone() int {
-	return s.SizeTotal - s.SizeLeft
-}
-
-func (s *SyncProgress) SizePercent() int {
-	if s.SizeTotal == 0 {
-		return 100
-	} else {
-		return int(math.Floor(float64(s.SizeDone()) / float64(s.SizeTotal) * float64(100)))
-	}
-}
-
 func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err error) {
-
-	defer close(progressChannel)
-
-	time.Sleep(time.Millisecond * 100)
 	if !n.IsRoot() {
 		if n.AncestorsHaveError() {
 			// give some between writes on progressChannel
-			errorMsg := fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0])
-			err = errors.New(errorMsg)
+			warningMsg := fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0])
 			sp := SyncProgress{
-				State: "skipped",
-				Error: err,
+				Node:    n,
+				State:   "skipped",
+				Message: warningMsg,
 			}
 			progressChannel <- sp
 			return err
@@ -285,20 +242,19 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 		if err != nil {
 			n.Errors = append(n.Errors, err)
 			sp := SyncProgress{
+				Node:  n,
 				State: "error",
-				Error: err,
 			}
 			progressChannel <- sp
 			return err
 		}
 
 		callReport, _, err := client.Repositories.SyncRepository(repository)
-
 		if err != nil {
 			n.Errors = append(n.Errors, err)
 			sp := SyncProgress{
+				Node:  n,
 				State: "error",
-				Error: err,
 			}
 
 			progressChannel <- sp
@@ -316,8 +272,8 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 			if err != nil {
 				n.Errors = append(n.Errors, err)
 				sp := SyncProgress{
+					Node:  n,
 					State: "error",
-					Error: err,
 				}
 				progressChannel <- sp
 				return err
@@ -328,8 +284,8 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 				err = errors.New(errorMsg)
 				n.Errors = append(n.Errors, err)
 				sp := SyncProgress{
+					Node:  n,
 					State: "error",
-					Error: err,
 				}
 
 				progressChannel <- sp
@@ -338,6 +294,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 
 			state = task.State
 			sp := SyncProgress{
+				Node:  n,
 				State: state,
 			}
 
@@ -349,20 +306,10 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 			} else {
 				// if task response is missing attributes, ignore and continue
 				continue PROGRESS_LOOP
-				// errorMsg := "Could not read the task progress"
-				// err = errors.New(errorMsg)
-				// n.Errors = append(n.Errors, err)
-				// sp := SyncProgress{
-				// 	State: "error",
-				// 	Error: err,
-				// }
-				// progressChannel <- sp
-				// return err
 			}
 
 			progressChannel <- sp
 			time.Sleep(500 * time.Millisecond)
-
 		}
 	}
 
