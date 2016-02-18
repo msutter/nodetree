@@ -19,7 +19,7 @@ import (
 	"github.com/msutter/nodetree/models"
 	"github.com/spf13/cobra"
 	// "sync"
-	// "time"
+	"time"
 
 	tm "github.com/buger/goterm"
 )
@@ -61,6 +61,15 @@ Filters can be set on Fqdns and tags.`,
 			}
 		}
 
+		var err models.SyncErrors
+		var stage *models.Stage
+
+		if pAll {
+			stage = currentStage
+		} else {
+			stage = currentStage.Filter(pFqdns, pTags)
+		}
+
 		// Create a progress channel
 		progressChannel := make(chan models.SyncProgress)
 
@@ -70,17 +79,14 @@ Filters can be set on Fqdns and tags.`,
 			if pQuiet {
 				go RenderQuietView(progressChannel)
 			} else {
-				go RenderProgressView(progressChannel)
+				tm.Clear()
+				tm.Flush()
+				time.Sleep(time.Millisecond * 50)
+				go RenderProgressView(stage, progressChannel)
 			}
 		}
 
-		var err models.SyncErrors
-		if pAll {
-			err = currentStage.Sync(pRepository, progressChannel)
-		} else {
-			filteredStage := currentStage.Filter(pFqdns, pTags)
-			err = filteredStage.Sync(pRepository, progressChannel)
-		}
+		err = stage.Sync(pRepository, progressChannel)
 
 		if err.Any() {
 			if !pSilent {
@@ -113,33 +119,34 @@ func init() {
 }
 
 // Progress view with colors and inplace update
-func RenderProgressView(progressChannel chan models.SyncProgress) {
+func RenderProgressView(s *models.Stage, progressChannel chan models.SyncProgress) {
 	nodeStates := make(map[string]string)
-
+	cursorLine := 1
 	for sp := range progressChannel {
+		tm.MoveCursor(cursorLine+sp.Node.TreePosition, 1)
+		tm.Flush()
 		switch sp.State {
 		case "skipped":
 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
-			tm.Flush()
 		case "error":
 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
-			tm.Flush()
 		case "running":
 			// only output state changes
 			if nodeStates[sp.Node.Fqdn] != sp.State {
 				line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
 				tm.Printf(tm.Color(line, tm.BLUE))
-				tm.Flush()
 			}
 			nodeStates[sp.Node.Fqdn] = sp.State
 		case "finished":
 			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
-			tm.Flush()
 		}
+		tm.Flush()
 	}
+	tm.MoveCursor(cursorLine+len(s.Nodes)+2, 1)
+	tm.Flush()
 }
 
 // simple view. No in place updates
@@ -148,23 +155,23 @@ func RenderQuietView(progressChannel chan models.SyncProgress) {
 	for sp := range progressChannel {
 		switch sp.State {
 		case "skipped":
-			line := fmt.Sprintf("%v [%v]", sp.Node.Fqdn, sp.State)
+			line := fmt.Sprintf("%v [%v] %v", sp.Node.Fqdn, sp.State, sp.Node.TreePosition)
 			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
 			tm.Flush()
 		case "error":
-			line := fmt.Sprintf("%v [%v]", sp.Node.Fqdn, sp.State)
+			line := fmt.Sprintf("%v [%v] %v", sp.Node.Fqdn, sp.State, sp.Node.TreePosition)
 			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
 			tm.Flush()
 		case "running":
 			// only output state changes
 			if nodeStates[sp.Node.Fqdn] != sp.State {
-				line := fmt.Sprintf("%v [%v]", sp.Node.Fqdn, sp.State)
+				line := fmt.Sprintf("%v [%v] %v", sp.Node.Fqdn, sp.State, sp.Node.TreePosition)
 				tm.Printf(tm.Color(line, tm.BLUE))
 				tm.Flush()
 			}
 			nodeStates[sp.Node.Fqdn] = sp.State
 		case "finished":
-			line := fmt.Sprintf("%v [%v]", sp.Node.Fqdn, sp.State)
+			line := fmt.Sprintf("%v [%v] %v", sp.Node.Fqdn, sp.State, sp.Node.TreePosition)
 			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
 			tm.Flush()
 		}
