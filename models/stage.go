@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	// "github.com/gosuri/uiprogress"
 	"sync"
 	"time"
 )
@@ -107,10 +106,20 @@ func (s *Stage) Sync(repository string) (err error) {
 	s.SyncedNodeTreeWalker(func(n *Node) (err error) {
 		// Create a progress channel
 		progressChannel := make(chan SyncProgress)
-		// Read the progressChannel until it's closed
+		// Read the progressChannel for this node until it's closed
 		go func() {
+			state := "init"
 			for sp := range progressChannel {
-				switch {
+				switch sp.State {
+				case "error":
+					fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
+				case "running":
+					if state != sp.State {
+						fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
+					}
+					state = sp.State
+				case "finished":
+					fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
 				default:
 					fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
 				}
