@@ -265,6 +265,9 @@ func (s *SyncProgress) SizePercent() int {
 
 func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err error) {
 
+	// give some between writes on progressChannel
+	time.Sleep(time.Millisecond * 50)
+
 	defer close(progressChannel)
 
 	if !n.IsRoot() {
@@ -274,12 +277,14 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 				State:   "skipped",
 				Warning: fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0]),
 			}
+
 			progressChannel <- sp
 			return
 		}
 		// create the API client
 		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
 		if err != nil {
+			n.Errors = append(n.Errors, err)
 			sp := SyncProgress{
 				State: "error",
 				Error: err,
@@ -291,6 +296,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 		callReport, _, err := client.Repositories.SyncRepository(repository)
 
 		if err != nil {
+			n.Errors = append(n.Errors, err)
 			sp := SyncProgress{
 				State: "error",
 				Error: err,
@@ -308,6 +314,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 
 			task, _, err := client.Tasks.GetTask(syncTaskId)
 			if err != nil {
+				n.Errors = append(n.Errors, err)
 				sp := SyncProgress{
 					State: "error",
 					Error: err,
@@ -319,6 +326,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 			if task.State == "error" {
 				errorMsg := task.ProgressReport.YumImporter.Metadata.Error
 				err = errors.New(errorMsg)
+				n.Errors = append(n.Errors, err)
 				sp := SyncProgress{
 					State: "error",
 					Error: err,
@@ -341,6 +349,7 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 			} else {
 				errorMsg := "Could not read the task progress"
 				err = errors.New(errorMsg)
+				n.Errors = append(n.Errors, err)
 				sp := SyncProgress{
 					State: "error",
 					Error: err,

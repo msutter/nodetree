@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	tm "github.com/buger/goterm"
 	"sync"
 	"time"
 )
@@ -111,17 +112,25 @@ func (s *Stage) Sync(repository string) (err error) {
 			state := "init"
 			for sp := range progressChannel {
 				switch sp.State {
+				case "skipped":
+					line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
+					tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
+					tm.Flush()
 				case "error":
-					fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
+					line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
+					tm.Printf(tm.Color(tm.Bold(line), tm.RED))
+					tm.Flush()
 				case "running":
 					if state != sp.State {
-						fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
+						line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
+						tm.Printf(tm.Color(line, tm.YELLOW))
+						tm.Flush()
 					}
 					state = sp.State
 				case "finished":
-					fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
-				default:
-					fmt.Printf("%v %v\n", n.GetTreeRaw(n.Fqdn), sp.State)
+					line := fmt.Sprintf("%v %v", n.GetTreeRaw(n.Fqdn), sp.State)
+					tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
+					tm.Flush()
 				}
 			}
 		}()
