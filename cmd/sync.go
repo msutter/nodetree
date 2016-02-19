@@ -19,14 +19,13 @@ import (
 	"github.com/msutter/nodetree/models"
 	"github.com/spf13/cobra"
 	// "sync"
-	"time"
-
+	// "time"
 	tm "github.com/buger/goterm"
+	"os"
 )
 
-var pRepository string
-var pQuiet bool
-var pSilent bool
+var pRepositories []string
+var pAllRepositories bool
 
 // syncCmd represents the sync command
 var syncCmd = &cobra.Command{
@@ -40,7 +39,7 @@ Filters can be set on Fqdns and tags.`,
 			ErrorExitWithUsage(cmd, "sync needs a name for the stage")
 		}
 
-		if pRepository == "" {
+		if len(pRepositories) == 0 {
 			ErrorExitWithUsage(cmd, "sync needs a repository name")
 		}
 
@@ -73,39 +72,37 @@ Filters can be set on Fqdns and tags.`,
 		// Create a progress channel
 		progressChannel := make(chan models.SyncProgress)
 
-		if pSilent {
+		switch {
+		case pSilent:
 			go RenderSilentView(progressChannel)
+		case pQuiet:
+			go RenderQuietView(progressChannel)
+		default:
+			go RenderProgressView(stage, progressChannel)
+		}
+
+		if pAllRepositories {
+			err = stage.SyncAll(progressChannel)
 		} else {
-			if pQuiet {
-				go RenderQuietView(progressChannel)
-			} else {
-				tm.Clear()
-				tm.Flush()
-				time.Sleep(time.Millisecond * 50)
-				go RenderProgressView(stage, progressChannel)
-			}
+			err = stage.Sync(pRepositories, progressChannel)
+
 		}
-
-		err = stage.Sync(pRepository, progressChannel)
-
 		if err.Any() {
-			if !pSilent {
-				if pQuiet {
-					RenderErrorSummary(err)
-				} else {
-					RenderErrorSummary(err)
-				}
+			switch {
+			case pSilent:
+				// no report
+			default:
+				RenderErrorSummary(err)
 			}
 		}
-
+		os.Exit(1)
 	},
 }
 
 func init() {
 	pulpCmd.AddCommand(syncCmd)
-	syncCmd.Flags().StringVarP(&pRepository, "repository", "r", "", "the repository to be synced.")
-	syncCmd.Flags().BoolVarP(&pQuiet, "quiet", "q", false, "simple output")
-	syncCmd.Flags().BoolVarP(&pSilent, "silent", "s", false, "no output")
+	syncCmd.Flags().StringSliceVarP(&pRepositories, "repositories", "r", []string{}, "the repositories to be synced.")
+	syncCmd.Flags().BoolVar(&pAllRepositories, "all-repositories", false, "sync all repositories")
 
 	// Here you will define your flags and configuration settings.
 
@@ -151,27 +148,30 @@ func RenderProgressView(s *models.Stage, progressChannel chan models.SyncProgres
 
 // simple view. No in place updates
 func RenderQuietView(progressChannel chan models.SyncProgress) {
-	nodeStates := make(map[string]string)
+	syncStates := make(map[string]map[string]string)
 	for sp := range progressChannel {
+		if _, exists := syncStates[sp.Node.Fqdn]; !exists {
+			syncStates[sp.Node.Fqdn] = make(map[string]string)
+		}
 		switch sp.State {
 		case "skipped":
-			line := fmt.Sprintf("%v [%v] %v", sp.Node.Fqdn, sp.State, sp.Node.TreePosition)
+			line := fmt.Sprintf("%v %v %v", sp.Node.Fqdn, sp.Repository, sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
 			tm.Flush()
 		case "error":
-			line := fmt.Sprintf("%v [%v] %v", sp.Node.Fqdn, sp.State, sp.Node.TreePosition)
+			line := fmt.Sprintf("%v %v %v", sp.Node.Fqdn, sp.Repository, sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
 			tm.Flush()
 		case "running":
 			// only output state changes
-			if nodeStates[sp.Node.Fqdn] != sp.State {
-				line := fmt.Sprintf("%v [%v] %v", sp.Node.Fqdn, sp.State, sp.Node.TreePosition)
+			if syncStates[sp.Node.Fqdn][sp.Repository] != sp.State {
+				line := fmt.Sprintf("%v %v %v", sp.Node.Fqdn, sp.Repository, sp.State)
 				tm.Printf(tm.Color(line, tm.BLUE))
 				tm.Flush()
 			}
-			nodeStates[sp.Node.Fqdn] = sp.State
+			syncStates[sp.Node.Fqdn][sp.Repository] = sp.State
 		case "finished":
-			line := fmt.Sprintf("%v [%v] %v", sp.Node.Fqdn, sp.State, sp.Node.TreePosition)
+			line := fmt.Sprintf("%v %v %v", sp.Node.Fqdn, sp.Repository, sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
 			tm.Flush()
 		}

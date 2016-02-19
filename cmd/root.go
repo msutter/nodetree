@@ -24,10 +24,16 @@ import (
 )
 
 var cfgFile string
+
+// models
+var stageTree models.StageTree
+
+// flags
 var pFqdns []string
 var pTags []string
 var pAll bool
-var stageTree models.StageTree
+var pQuiet bool
+var pSilent bool
 
 // This represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -60,6 +66,8 @@ func init() {
 	RootCmd.PersistentFlags().StringSliceVarP(&pFqdns, "fqdn", "f", []string{}, "Filter on Fqdn. You can define multiple fqdns by repeating the -f flag for each fqdn")
 	RootCmd.PersistentFlags().StringSliceVarP(&pTags, "tag", "t", []string{}, "Filter on Tag. You can define multiple tags by repeating the -t flag for each tag")
 	RootCmd.PersistentFlags().BoolVarP(&pAll, "all", "a", false, "Execute the command on all nodes in this stage tree")
+	RootCmd.PersistentFlags().BoolVarP(&pQuiet, "quiet", "q", false, "simple output")
+	RootCmd.PersistentFlags().BoolVarP(&pSilent, "silent", "s", false, "no output")
 
 }
 
@@ -74,7 +82,7 @@ func initConfig() {
 	viper.AutomaticEnv()             // read in environment variables that match
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
+	if err := viper.ReadInConfig(); (err == nil) && !pSilent {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
 

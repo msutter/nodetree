@@ -6,6 +6,7 @@ import (
 
 type SyncProgress struct {
 	Node       *Node
+	Repository string
 	State      string
 	SizeTotal  int
 	SizeLeft   int

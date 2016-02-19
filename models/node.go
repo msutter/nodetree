@@ -224,7 +224,7 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 	return returnValue
 }
 
-func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err error) {
+func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (err error) {
 	if !n.IsRoot() {
 		if n.AncestorsHaveError() {
 			// give some between writes on progressChannel
@@ -249,67 +249,73 @@ func (n *Node) Sync(repository string, progressChannel chan SyncProgress) (err e
 			return err
 		}
 
-		callReport, _, err := client.Repositories.SyncRepository(repository)
-		if err != nil {
-			n.Errors = append(n.Errors, err)
-			sp := SyncProgress{
-				Node:  n,
-				State: "error",
-			}
-
-			progressChannel <- sp
-			return err
-		}
-
-		syncTaskId := callReport.SpawnedTasks[0].TaskId
-
-		state := "init"
-
-	PROGRESS_LOOP:
-		for (state != "finished") && (state != "error") {
-
-			task, _, err := client.Tasks.GetTask(syncTaskId)
+		for _, repository := range repositories {
+			callReport, _, err := client.Repositories.SyncRepository(repository)
 			if err != nil {
 				n.Errors = append(n.Errors, err)
 				sp := SyncProgress{
-					Node:  n,
-					State: "error",
+					Repository: repository,
+					Node:       n,
+					State:      "error",
 				}
+
 				progressChannel <- sp
 				return err
 			}
 
-			if task.State == "error" {
-				errorMsg := task.ProgressReport.YumImporter.Metadata.Error
-				err = errors.New(errorMsg)
-				n.Errors = append(n.Errors, err)
+			syncTaskId := callReport.SpawnedTasks[0].TaskId
+
+			state := "init"
+
+		PROGRESS_LOOP:
+			for (state != "finished") && (state != "error") {
+
+				task, _, err := client.Tasks.GetTask(syncTaskId)
+				if err != nil {
+					n.Errors = append(n.Errors, err)
+					sp := SyncProgress{
+						Repository: repository,
+						Node:       n,
+						State:      "error",
+					}
+					progressChannel <- sp
+					return err
+				}
+
+				if task.State == "error" {
+					errorMsg := task.ProgressReport.YumImporter.Metadata.Error
+					err = errors.New(errorMsg)
+					n.Errors = append(n.Errors, err)
+					sp := SyncProgress{
+						Repository: repository,
+						Node:       n,
+						State:      "error",
+					}
+
+					progressChannel <- sp
+					return err
+				}
+
+				state = task.State
 				sp := SyncProgress{
-					Node:  n,
-					State: "error",
+					Repository: repository,
+					Node:       n,
+					State:      state,
+				}
+
+				if task.ProgressReport.YumImporter.Content != nil {
+					sp.SizeTotal = task.ProgressReport.YumImporter.Content.SizeTotal
+					sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
+					sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
+					sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
+				} else {
+					// if task response is missing attributes, ignore and continue
+					continue PROGRESS_LOOP
 				}
 
 				progressChannel <- sp
-				return err
+				time.Sleep(500 * time.Millisecond)
 			}
-
-			state = task.State
-			sp := SyncProgress{
-				Node:  n,
-				State: state,
-			}
-
-			if task.ProgressReport.YumImporter.Content != nil {
-				sp.SizeTotal = task.ProgressReport.YumImporter.Content.SizeTotal
-				sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
-				sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
-				sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
-			} else {
-				// if task response is missing attributes, ignore and continue
-				continue PROGRESS_LOOP
-			}
-
-			progressChannel <- sp
-			time.Sleep(500 * time.Millisecond)
 		}
 	}
 

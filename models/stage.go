@@ -97,13 +97,17 @@ func (s *Stage) SyncedNodeTreeWalker(f func(n *Node) error) {
 	leafsWaitGroup.Wait()
 }
 
-func (s *Stage) Sync(repository string, progressChannel chan SyncProgress) (syncErrors SyncErrors) {
+func (s *Stage) SyncAll(progressChannel chan SyncProgress) (syncErrors SyncErrors) {
+	return
+}
+
+func (s *Stage) Sync(repositories []string, progressChannel chan SyncProgress) (syncErrors SyncErrors) {
 	defer close(progressChannel)
 
 	// Use the synced walk
 	s.SyncedNodeTreeWalker(func(n *Node) (serr error) {
 		// Execute the sync
-		serr = n.Sync(repository, progressChannel)
+		serr = n.Sync(repositories, progressChannel)
 		if serr != nil {
 			syncErrors.Nodes = append(syncErrors.Nodes, n)
 		}
