@@ -9,16 +9,17 @@ import (
 )
 
 type Node struct {
-	Fqdn         string
-	ApiUser      string
-	ApiPasswd    string
-	Tags         []string
-	Parent       *Node
-	Children     []*Node
-	SyncPath     []string
-	Depth        int
-	TreePosition int
-	Errors       []error
+	Fqdn            string
+	ApiUser         string
+	ApiPasswd       string
+	Tags            []string
+	Parent          *Node
+	Children        []*Node
+	SyncPath        []string
+	Depth           int
+	TreePosition    int
+	Errors          []error
+	RepositoryError map[string]error
 }
 
 // Matches the given fqdn?
@@ -142,8 +143,26 @@ func (n *Node) AncestorsHaveError() bool {
 	return returnValue
 }
 
+// Ancestor has Error
+func (n *Node) AncestorsHaveRepositoryError(repository string) bool {
+	returnValue := false
+	for _, ancestor := range n.Ancestors() {
+		if ancestor.RepositoryError[repository] != nil {
+			returnValue = true
+		}
+	}
+	return returnValue
+}
+
 func (n *Node) AncestorFqdnsWithErrors() (ancestorFqdns []string) {
 	for _, ancestor := range n.AncestorsWithErrors() {
+		ancestorFqdns = append(ancestorFqdns, ancestor.Fqdn)
+	}
+	return
+}
+
+func (n *Node) AncestorFqdnsWithRepositoryError(repository string) (ancestorFqdns []string) {
+	for _, ancestor := range n.AncestorsWithRepositoryError(repository) {
 		ancestorFqdns = append(ancestorFqdns, ancestor.Fqdn)
 	}
 	return
@@ -153,6 +172,16 @@ func (n *Node) AncestorFqdnsWithErrors() (ancestorFqdns []string) {
 func (n *Node) AncestorsWithErrors() (ancestors []*Node) {
 	n.AncestorTreeWalker(func(ancestor *Node) {
 		if ancestor.Errors != nil {
+			ancestors = append(ancestors, ancestor)
+		}
+	})
+	return
+}
+
+// Ancestor has Error
+func (n *Node) AncestorsWithRepositoryError(repository string) (ancestors []*Node) {
+	n.AncestorTreeWalker(func(ancestor *Node) {
+		if ancestor.RepositoryError[repository] != nil {
 			ancestors = append(ancestors, ancestor)
 		}
 	})
@@ -226,6 +255,7 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 
 func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (err error) {
 	if !n.IsRoot() {
+		n.RepositoryError = make(map[string]error)
 		if n.AncestorsHaveError() {
 			// give some between writes on progressChannel
 			warningMsg := fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0])
@@ -237,6 +267,7 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 			progressChannel <- sp
 			return err
 		}
+
 		// create the API client
 		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
 		if err != nil {
@@ -250,6 +281,7 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 		}
 
 		for _, repository := range repositories {
+
 			callReport, _, err := client.Repositories.SyncRepository(repository)
 			if err != nil {
 				n.Errors = append(n.Errors, err)
@@ -270,9 +302,22 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 		PROGRESS_LOOP:
 			for (state != "finished") && (state != "error") {
 
+				if n.AncestorsHaveRepositoryError(repository) {
+					// give some between writes on progressChannel
+					warningMsg := fmt.Sprintf("skipping sync due to errors on ancestor repository %v on node %v", repository, n.AncestorFqdnsWithRepositoryError(repository)[0])
+					sp := SyncProgress{
+						Repository: repository,
+						Node:       n,
+						State:      "skipped",
+						Message:    warningMsg,
+					}
+					progressChannel <- sp
+					return err
+				}
+
 				task, _, err := client.Tasks.GetTask(syncTaskId)
 				if err != nil {
-					n.Errors = append(n.Errors, err)
+					n.RepositoryError[repository] = err
 					sp := SyncProgress{
 						Repository: repository,
 						Node:       n,
@@ -285,7 +330,7 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 				if task.State == "error" {
 					errorMsg := task.ProgressReport.YumImporter.Metadata.Error
 					err = errors.New(errorMsg)
-					n.Errors = append(n.Errors, err)
+					n.RepositoryError[repository] = err
 					sp := SyncProgress{
 						Repository: repository,
 						Node:       n,

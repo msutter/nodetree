@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"github.com/msutter/nodetree/models"
 	"github.com/spf13/cobra"
-	// "sync"
+	"sync"
 	// "time"
 	tm "github.com/buger/goterm"
 	"os"
@@ -72,21 +72,25 @@ Filters can be set on Fqdns and tags.`,
 		// Create a progress channel
 		progressChannel := make(chan models.SyncProgress)
 
+		var renderWg sync.WaitGroup
+		renderWg.Add(1)
 		switch {
 		case pSilent:
-			go RenderSilentView(progressChannel)
+			go RenderSilentView(progressChannel, &renderWg)
 		case pQuiet:
-			go RenderQuietView(progressChannel)
+			go RenderQuietView(progressChannel, &renderWg)
 		default:
-			go RenderProgressView(stage, progressChannel)
+			go RenderProgressView(stage, progressChannel, &renderWg)
 		}
 
 		if pAllRepositories {
 			err = stage.SyncAll(progressChannel)
 		} else {
 			err = stage.Sync(pRepositories, progressChannel)
-
 		}
+
+		renderWg.Wait()
+
 		if err.Any() {
 			switch {
 			case pSilent:
@@ -116,7 +120,8 @@ func init() {
 }
 
 // Progress view with colors and inplace update
-func RenderProgressView(s *models.Stage, progressChannel chan models.SyncProgress) {
+func RenderProgressView(s *models.Stage, progressChannel chan models.SyncProgress, wg *sync.WaitGroup) {
+	defer wg.Done()
 	nodeStates := make(map[string]string)
 	cursorLine := 1
 	for sp := range progressChannel {
@@ -147,7 +152,8 @@ func RenderProgressView(s *models.Stage, progressChannel chan models.SyncProgres
 }
 
 // simple view. No in place updates
-func RenderQuietView(progressChannel chan models.SyncProgress) {
+func RenderQuietView(progressChannel chan models.SyncProgress, wg *sync.WaitGroup) {
+	defer wg.Done()
 	syncStates := make(map[string]map[string]string)
 	for sp := range progressChannel {
 		if _, exists := syncStates[sp.Node.Fqdn]; !exists {
@@ -179,7 +185,9 @@ func RenderQuietView(progressChannel chan models.SyncProgress) {
 }
 
 // silent view
-func RenderSilentView(progressChannel chan models.SyncProgress) {
+func RenderSilentView(progressChannel chan models.SyncProgress, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	for sp := range progressChannel {
 		// do nothing
 		_ = sp
