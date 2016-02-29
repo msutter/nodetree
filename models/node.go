@@ -132,6 +132,15 @@ func (n *Node) GetAncestorByDepth(depth int) (depthAncestor *Node) {
 	return
 }
 
+// Has Error
+func (n *Node) HasError() bool {
+	returnValue := false
+	if (len(n.Errors) > 0) || len(n.RepositoryError) > 0 {
+		returnValue = true
+	}
+	return returnValue
+}
+
 // Ancestor has Error
 func (n *Node) AncestorsHaveError() bool {
 	returnValue := false
@@ -256,17 +265,16 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (err error) {
 	if !n.IsRoot() {
 		n.RepositoryError = make(map[string]error)
-		if n.AncestorsHaveError() {
-			// give some between writes on progressChannel
-			warningMsg := fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0])
-			sp := SyncProgress{
-				Node:    n,
-				State:   "skipped",
-				Message: warningMsg,
-			}
-			progressChannel <- sp
-			return err
-		}
+		// if n.AncestorsHaveError() {
+		// 	// give some between writes on progressChannel
+		// 	warningMsg := fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0])
+		// 	sp := SyncProgress{
+		// 		Node:    n,
+		// 		State:   "skipped",
+		// 		Message: warningMsg,
+		// 	}
+		// 	progressChannel <- sp
+		// }
 
 		// create the API client
 		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
@@ -277,26 +285,25 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 				State: "error",
 			}
 			progressChannel <- sp
-			return err
 		}
 
+	REPOSITORY_LOOP:
 		for _, repository := range repositories {
 
 			callReport, _, err := client.Repositories.SyncRepository(repository)
 			if err != nil {
 				n.Errors = append(n.Errors, err)
+				n.RepositoryError[repository] = err
 				sp := SyncProgress{
 					Repository: repository,
 					Node:       n,
 					State:      "error",
 				}
-
 				progressChannel <- sp
-				return err
+				continue REPOSITORY_LOOP
 			}
 
 			syncTaskId := callReport.SpawnedTasks[0].TaskId
-
 			state := "init"
 
 		PROGRESS_LOOP:
@@ -312,7 +319,8 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 						Message:    warningMsg,
 					}
 					progressChannel <- sp
-					return err
+					// break the process loop
+					continue REPOSITORY_LOOP
 				}
 
 				task, _, err := client.Tasks.GetTask(syncTaskId)
@@ -324,13 +332,15 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 						State:      "error",
 					}
 					progressChannel <- sp
-					return err
+					continue REPOSITORY_LOOP
 				}
 
 				if task.State == "error" {
 					errorMsg := task.ProgressReport.YumImporter.Metadata.Error
 					err = errors.New(errorMsg)
+					n.Errors = append(n.Errors, err)
 					n.RepositoryError[repository] = err
+
 					sp := SyncProgress{
 						Repository: repository,
 						Node:       n,
@@ -338,7 +348,7 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 					}
 
 					progressChannel <- sp
-					return err
+					continue REPOSITORY_LOOP
 				}
 
 				state = task.State
@@ -363,7 +373,6 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 			}
 		}
 	}
-
 	return
 }
 

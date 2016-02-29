@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	// "fmt"
+	"fmt"
 	"github.com/spf13/cobra"
 )
 
@@ -33,17 +33,19 @@ Filters can be set on Fqdns and tags.`,
 
 		// check for flags
 		if len(pFqdns) == 0 && len(pTags) == 0 {
-			pAll = true
+			pAllNode = true
 		}
 
 		currentStage := stageTree.GetStageByName(args[0])
 
-		if pAll {
+		if pAllNode {
 			currentStage.Show()
 		} else {
 			filteredStage := currentStage.Filter(pFqdns, pTags)
 			filteredStage.Show()
 		}
+		fmt.Printf("\n")
+
 	},
 }
 

@@ -46,24 +46,24 @@ Filters can be set on Fqdns and tags.`,
 		currentStage := stageTree.GetStageByName(args[0])
 
 		// check for flags
-		if len(pFqdns) == 0 && len(pTags) == 0 && !pAll {
+		if len(pFqdns) == 0 && len(pTags) == 0 && !pAllNode {
 			fmt.Printf("\nWARNING: This will sync the complete tree for the '%v' stage!\n", args[0])
 			currentStage.Show()
 			fmt.Println("")
 			fmt.Printf("you can get rid of this warning by setting the --all flag\n")
 			fmt.Printf("Are you sure you want to continue? (yes/no)\n")
 			userConfirm := askForConfirmation()
+
 			if !userConfirm {
 				ErrorExit("sync canceled !")
 			} else {
-				pAll = true
+				pAllNode = true
 			}
 		}
 
-		var err models.SyncErrors
 		var stage *models.Stage
 
-		if pAll {
+		if pAllNode {
 			stage = currentStage
 		} else {
 			stage = currentStage.Filter(pFqdns, pTags)
@@ -74,32 +74,35 @@ Filters can be set on Fqdns and tags.`,
 
 		var renderWg sync.WaitGroup
 		renderWg.Add(1)
+
 		switch {
 		case pSilent:
 			go RenderSilentView(progressChannel, &renderWg)
 		case pQuiet:
 			go RenderQuietView(progressChannel, &renderWg)
 		default:
-			go RenderProgressView(stage, progressChannel, &renderWg)
+			go RenderQuietView(progressChannel, &renderWg)
+			// go RenderProgressView(stage, progressChannel, &renderWg)
 		}
 
 		if pAllRepositories {
-			err = stage.SyncAll(progressChannel)
+			stage.SyncAll(progressChannel)
 		} else {
-			err = stage.Sync(pRepositories, progressChannel)
+			stage.Sync(pRepositories, progressChannel)
 		}
 
 		renderWg.Wait()
 
-		if err.Any() {
-			switch {
-			case pSilent:
-				// no report
-			default:
-				RenderErrorSummary(err)
-			}
+		switch {
+		case pSilent:
+			// no report
+		default:
+			RenderErrorSummary(stage)
 		}
-		os.Exit(1)
+
+		if stage.HasError() {
+			os.Exit(1)
+		}
 	},
 }
 
@@ -119,40 +122,9 @@ func init() {
 	// syncCmd.Flags().StringSlice("fqdns", []string{}, "Filter on Fqdns")
 }
 
-// Progress view with colors and inplace update
-func RenderProgressView(s *models.Stage, progressChannel chan models.SyncProgress, wg *sync.WaitGroup) {
-	defer wg.Done()
-	nodeStates := make(map[string]string)
-	cursorLine := 1
-	for sp := range progressChannel {
-		tm.MoveCursor(cursorLine+sp.Node.TreePosition, 1)
-		tm.Flush()
-		switch sp.State {
-		case "skipped":
-			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
-		case "error":
-			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
-		case "running":
-			// only output state changes
-			if nodeStates[sp.Node.Fqdn] != sp.State {
-				line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-				tm.Printf(tm.Color(line, tm.BLUE))
-			}
-			nodeStates[sp.Node.Fqdn] = sp.State
-		case "finished":
-			line := fmt.Sprintf("%v [%v]", sp.Node.GetTreeRaw(sp.Node.Fqdn), sp.State)
-			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
-		}
-		tm.Flush()
-	}
-	tm.MoveCursor(cursorLine+len(s.Nodes)+2, 1)
-	tm.Flush()
-}
-
 // simple view. No in place updates
 func RenderQuietView(progressChannel chan models.SyncProgress, wg *sync.WaitGroup) {
+	depthChar := "--- "
 	defer wg.Done()
 	syncStates := make(map[string]map[string]string)
 	for sp := range progressChannel {
@@ -161,22 +133,34 @@ func RenderQuietView(progressChannel chan models.SyncProgress, wg *sync.WaitGrou
 		}
 		switch sp.State {
 		case "skipped":
+			for i := 0; i < sp.Node.Depth; i++ {
+				fmt.Printf(depthChar)
+			}
 			line := fmt.Sprintf("%v %v %v", sp.Node.Fqdn, sp.Repository, sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.MAGENTA))
 			tm.Flush()
 		case "error":
+			for i := 0; i < sp.Node.Depth; i++ {
+				fmt.Printf(depthChar)
+			}
 			line := fmt.Sprintf("%v %v %v", sp.Node.Fqdn, sp.Repository, sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.RED))
 			tm.Flush()
 		case "running":
 			// only output state changes
 			if syncStates[sp.Node.Fqdn][sp.Repository] != sp.State {
+				for i := 0; i < sp.Node.Depth; i++ {
+					fmt.Printf(depthChar)
+				}
 				line := fmt.Sprintf("%v %v %v", sp.Node.Fqdn, sp.Repository, sp.State)
 				tm.Printf(tm.Color(line, tm.BLUE))
 				tm.Flush()
 			}
 			syncStates[sp.Node.Fqdn][sp.Repository] = sp.State
 		case "finished":
+			for i := 0; i < sp.Node.Depth; i++ {
+				fmt.Printf(depthChar)
+			}
 			line := fmt.Sprintf("%v %v %v", sp.Node.Fqdn, sp.Repository, sp.State)
 			tm.Printf(tm.Color(tm.Bold(line), tm.GREEN))
 			tm.Flush()
@@ -194,22 +178,45 @@ func RenderSilentView(progressChannel chan models.SyncProgress, wg *sync.WaitGro
 	}
 }
 
-func RenderErrorSummary(s models.SyncErrors) {
-	titleLine := fmt.Sprintf("Found errors on %v nodes:", len(s.Nodes))
-	tm.Printf("\n")
-	tm.Printf(tm.Bold(titleLine))
-	tm.Printf("\n")
-	tm.Printf("\n")
+func RenderErrorSummary(s *models.Stage) {
+	titleLine := fmt.Sprintf("Found following errors:")
+	fmt.Printf("\n")
+	fmt.Printf(tm.Bold(titleLine))
+	fmt.Printf("\n")
+	fmt.Printf("\n")
+	_ = "breakpoint"
 	for _, n := range s.Nodes {
-		tm.Printf(tm.Color(tm.Bold(n.Fqdn), tm.RED))
-		tm.Printf("\n")
-		for _, e := range n.Errors {
-			tm.Printf(" - ")
-			tm.Printf(e.Error())
-			tm.Printf("\n")
+		if n.HasError() {
+			fmt.Printf(tm.Color(tm.Bold(n.Fqdn), tm.RED))
+			fmt.Printf("\n")
+			for k, v := range n.RepositoryError {
+				reposiroryErrorString := fmt.Sprintf("%v: ", k)
+				fmt.Printf(" - ")
+				fmt.Printf(tm.Color(reposiroryErrorString, tm.RED))
+				fmt.Printf(v.Error())
+				fmt.Printf("\n")
+			}
+			fmt.Printf("\n")
 		}
-		// tm.Printf("\n")
 	}
-	tm.Flush()
-
+	// tm.Printf("\n")
+	// tm.Printf(tm.Bold(titleLine))
+	// tm.Printf("\n")
+	// tm.Printf("\n")
+	// _ = "breakpoint"
+	// for _, n := range s.Nodes {
+	// 	if n.HasError() {
+	// 		tm.Printf(tm.Color(tm.Bold(n.Fqdn), tm.RED))
+	// 		tm.Printf("\n")
+	// 		for k, v := range n.RepositoryError {
+	// 			reposiroryErrorString := fmt.Sprintf("%v: ", k)
+	// 			tm.Printf(" - ")
+	// 			tm.Printf(tm.Color(reposiroryErrorString, tm.RED))
+	// 			tm.Printf(v.Error())
+	// 			tm.Printf("\n")
+	// 		}
+	// 		tm.Printf("\n")
+	// 	}
+	// }
+	// tm.Flush()
 }
