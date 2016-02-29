@@ -199,24 +199,4 @@ func RenderErrorSummary(s *models.Stage) {
 			fmt.Printf("\n")
 		}
 	}
-	// tm.Printf("\n")
-	// tm.Printf(tm.Bold(titleLine))
-	// tm.Printf("\n")
-	// tm.Printf("\n")
-	// _ = "breakpoint"
-	// for _, n := range s.Nodes {
-	// 	if n.HasError() {
-	// 		tm.Printf(tm.Color(tm.Bold(n.Fqdn), tm.RED))
-	// 		tm.Printf("\n")
-	// 		for k, v := range n.RepositoryError {
-	// 			reposiroryErrorString := fmt.Sprintf("%v: ", k)
-	// 			tm.Printf(" - ")
-	// 			tm.Printf(tm.Color(reposiroryErrorString, tm.RED))
-	// 			tm.Printf(v.Error())
-	// 			tm.Printf("\n")
-	// 		}
-	// 		tm.Printf("\n")
-	// 	}
-	// }
-	// tm.Flush()
 }
