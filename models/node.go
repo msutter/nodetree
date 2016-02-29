@@ -306,7 +306,7 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 			syncTaskId := callReport.SpawnedTasks[0].TaskId
 			state := "init"
 
-		PROGRESS_LOOP:
+			// PROGRESS_LOOP:
 			for (state != "finished") && (state != "error") {
 
 				if n.AncestorsHaveRepositoryError(repository) {
@@ -365,7 +365,20 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 					sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
 				} else {
 					// if task response is missing attributes, ignore and continue
-					continue PROGRESS_LOOP
+					errorMsg := "Could not read the task progress"
+					err = errors.New(errorMsg)
+					n.Errors = append(n.Errors, err)
+					n.RepositoryError[repository] = err
+
+					sp := SyncProgress{
+						Repository: repository,
+						Node:       n,
+						State:      "error",
+					}
+
+					progressChannel <- sp
+					return err
+					// continue PROGRESS_LOOP
 				}
 
 				progressChannel <- sp
