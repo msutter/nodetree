@@ -263,18 +263,12 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 }
 
 func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (err error) {
+
+	waitingTimeout := 10
+	waitingRetries := 3
+
 	if !n.IsRoot() {
 		n.RepositoryError = make(map[string]error)
-		// if n.AncestorsHaveError() {
-		// 	// give some between writes on progressChannel
-		// 	warningMsg := fmt.Sprintf("skipping sync due to errors on ancestor node %v", n.AncestorFqdnsWithErrors()[0])
-		// 	sp := SyncProgress{
-		// 		Node:    n,
-		// 		State:   "skipped",
-		// 		Message: warningMsg,
-		// 	}
-		// 	progressChannel <- sp
-		// }
 
 		// create the API client
 		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
@@ -306,9 +300,10 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 			syncTaskId := callReport.SpawnedTasks[0].TaskId
 			state := "init"
 
-			// PROGRESS_LOOP:
+			progressTries := 0
+		PROGRESS_LOOP:
 			for (state != "finished") && (state != "error") {
-
+				progressTries++
 				if n.AncestorsHaveRepositoryError(repository) {
 					// give some between writes on progressChannel
 					warningMsg := fmt.Sprintf("skipping sync due to errors on ancestor repository %v on node %v", repository, n.AncestorFqdnsWithRepositoryError(repository)[0])
@@ -351,6 +346,30 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 					continue REPOSITORY_LOOP
 				}
 
+				if task.State == "waiting" {
+					if progressTries <= waitingRetries {
+						time.Sleep(time.Duration(waitingTimeout) * time.Second)
+						continue PROGRESS_LOOP
+
+					} else {
+						// In case of infinite waiting, kill the task (TODO) and exit with error
+
+						errorMsg := fmt.Sprintf("sync task '%v' has reached timeout in waiting state", task.Id)
+						err = errors.New(errorMsg)
+						n.Errors = append(n.Errors, err)
+						n.RepositoryError[repository] = err
+
+						sp := SyncProgress{
+							Repository: repository,
+							Node:       n,
+							State:      "error",
+						}
+
+						progressChannel <- sp
+						return err
+					}
+				}
+
 				state = task.State
 				sp := SyncProgress{
 					Repository: repository,
@@ -358,27 +377,11 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 					State:      state,
 				}
 
-				if task.ProgressReport.YumImporter.Content != nil {
+				if task.State == "running" {
 					sp.SizeTotal = task.ProgressReport.YumImporter.Content.SizeTotal
 					sp.SizeLeft = task.ProgressReport.YumImporter.Content.SizeLeft
 					sp.ItemsTotal = task.ProgressReport.YumImporter.Content.ItemsTotal
 					sp.ItemsLeft = task.ProgressReport.YumImporter.Content.ItemsLeft
-				} else {
-					// if task response is missing attributes, ignore and continue
-					errorMsg := "Could not read the task progress"
-					err = errors.New(errorMsg)
-					n.Errors = append(n.Errors, err)
-					n.RepositoryError[repository] = err
-
-					sp := SyncProgress{
-						Repository: repository,
-						Node:       n,
-						State:      "error",
-					}
-
-					progressChannel <- sp
-					return err
-					// continue PROGRESS_LOOP
 				}
 
 				progressChannel <- sp
