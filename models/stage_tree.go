@@ -2,6 +2,8 @@ package models
 
 type StageTree struct {
 	Description string
+	ApiUser     string
+	ApiPasswd   string
 	Stages      []*Stage
 }
 

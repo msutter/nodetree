@@ -1,65 +1,48 @@
 ---
 description: Pulp servers Tree
+apiuser: admin
+apipasswd: admin
 stages:
   - name: lab
     pulprootnode:
       fqdn: pulp-lab-1.test
-      apiuser: admin
-      apipasswd: admin
       tags:
         - '0MZ'
       children:
         - fqdn: pulp-lab-11.test
-          apiuser: admin
-          apipasswd: admin
+          # apiuser: admin
+          # apipasswd: admin
           tags:
             - '11MZ'
           children:
             - fqdn: pulp-lab-111.test
-              apiuser: admin
-              apipasswd: admin
               children:
                 - fqdn: 'pulp-lab-1111.test'
-                  apiuser: admin
-                  apipasswd: admin
                   tags:
                     - '111MZ'
                   children:
                     - fqdn: pulp-lab-11111.test
-                      apiuser: admin
-                      apipasswd: admin
+                - fqdn: 'pulp-lab-1112.test'
+            - fqdn: pulp-lab-112.test
 
         - fqdn: pulp-lab-12.test
-          apiuser: admin
-          apipasswd: admin
           children:
             - fqdn: pulp-lab-121.test
-              apiuser: admin
-              apipasswd: admin
               tags:
                 - '12MZ'
             - fqdn: pulp-lab-122.test
-              apiuser: admin
-              apipasswd: admin
               tags:
                 - '12MZ'
             - fqdn: pulp-lab-123.test
-              apiuser: admin
-              apipasswd: admin
-              # children:
-              #   - fqdn: 'pulp-lab-1231.test'
-              #     apiuser: admin
-              #     apipasswd: admin
-              #     tags:
-              #       - '111MZ'
-              #     children:
-              #       - fqdn: pulp-lab-12311.test
-              #         apiuser: admin
-              #         apipasswd: admin
+              children:
+                - fqdn: 'pulp-lab-1231.test'
+                  tags:
+                    - '111MZ'
+                  children:
+                    - fqdn: pulp-lab-12311.test
+                - fqdn: 'pulp-lab-1232.test'
 
-        # - fqdn: pulp-lab-13.test
-        #   apiuser: admin
-        #   apipasswd: admin
+        - fqdn: pulp-lab-13.test
 
   - name: prd
     pulprootnode:

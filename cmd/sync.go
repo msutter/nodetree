@@ -93,14 +93,14 @@ Filters can be set on Fqdns and tags.`,
 
 		renderWg.Wait()
 
-		switch {
-		case pSilent:
-			// no report
-		default:
-			RenderErrorSummary(stage)
-		}
-
 		if stage.HasError() {
+			switch {
+			case pSilent:
+				// no report
+			default:
+				RenderErrorSummary(stage)
+			}
+
 			os.Exit(1)
 		}
 	},

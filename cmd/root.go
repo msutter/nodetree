@@ -87,6 +87,7 @@ func initConfig() {
 	}
 
 	viper.Unmarshal(&stageTree)
+
 }
 
 // askForConfirmation uses Scanln to parse user input. A user must type in "yes" or "no" and
