@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	// "github.com/msutter/nodetree/log"
+	tm "github.com/buger/goterm"
 	"github.com/msutter/nodetree/models"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,6 +35,8 @@ var pTags []string
 var pAllNode bool
 var pQuiet bool
 var pSilent bool
+var pRepositories []string
+var pAllRepositories bool
 
 // This represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -68,6 +71,8 @@ func init() {
 	RootCmd.PersistentFlags().BoolVarP(&pAllNode, "all", "a", false, "Execute the command on all nodes in this stage tree")
 	RootCmd.PersistentFlags().BoolVarP(&pQuiet, "quiet", "q", false, "simple output")
 	RootCmd.PersistentFlags().BoolVarP(&pSilent, "silent", "s", false, "no output")
+	RootCmd.PersistentFlags().StringSliceVarP(&pRepositories, "repositories", "r", []string{}, "the repositories to be synced.")
+	RootCmd.PersistentFlags().BoolVar(&pAllRepositories, "all-repositories", false, "sync all repositories")
 
 }
 
@@ -136,4 +141,33 @@ func ErrorExitWithUsage(ctx *cobra.Command, message string) {
 func ErrorExit(message string) {
 	fmt.Printf(message)
 	os.Exit(1)
+}
+
+func RenderErrorSummary(s *models.Stage) {
+	titleLine := fmt.Sprintf("Found following errors:")
+	fmt.Printf("\n")
+	fmt.Printf(tm.Bold(titleLine))
+	fmt.Printf("\n")
+	fmt.Printf("\n")
+	_ = "breakpoint"
+	for _, n := range s.Nodes {
+		if n.HasError() {
+			fmt.Printf(tm.Color(tm.Bold(n.Fqdn), tm.RED))
+			fmt.Printf("\n")
+			for _, e := range n.Errors {
+				ErrorString := fmt.Sprintf("%v", e.Error())
+				fmt.Printf(" - ")
+				fmt.Printf(tm.Color(ErrorString, tm.RED))
+				fmt.Printf("\n")
+			}
+			for k, v := range n.RepositoryError {
+				reposiroryErrorString := fmt.Sprintf("%v: ", k)
+				fmt.Printf(" - ")
+				fmt.Printf(tm.Color(reposiroryErrorString, tm.RED))
+				fmt.Printf(v.Error())
+				fmt.Printf("\n")
+			}
+			fmt.Printf("\n")
+		}
+	}
 }

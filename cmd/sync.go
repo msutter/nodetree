@@ -24,9 +24,6 @@ import (
 	"os"
 )
 
-var pRepositories []string
-var pAllRepositories bool
-
 // syncCmd represents the sync command
 var syncCmd = &cobra.Command{
 	Use:   "sync [stage name]",
@@ -108,8 +105,6 @@ Filters can be set on Fqdns and tags.`,
 
 func init() {
 	pulpCmd.AddCommand(syncCmd)
-	syncCmd.Flags().StringSliceVarP(&pRepositories, "repositories", "r", []string{}, "the repositories to be synced.")
-	syncCmd.Flags().BoolVar(&pAllRepositories, "all-repositories", false, "sync all repositories")
 
 	// Here you will define your flags and configuration settings.
 
@@ -175,28 +170,5 @@ func RenderSilentView(progressChannel chan models.SyncProgress, wg *sync.WaitGro
 	for sp := range progressChannel {
 		// do nothing
 		_ = sp
-	}
-}
-
-func RenderErrorSummary(s *models.Stage) {
-	titleLine := fmt.Sprintf("Found following errors:")
-	fmt.Printf("\n")
-	fmt.Printf(tm.Bold(titleLine))
-	fmt.Printf("\n")
-	fmt.Printf("\n")
-	_ = "breakpoint"
-	for _, n := range s.Nodes {
-		if n.HasError() {
-			fmt.Printf(tm.Color(tm.Bold(n.Fqdn), tm.RED))
-			fmt.Printf("\n")
-			for k, v := range n.RepositoryError {
-				reposiroryErrorString := fmt.Sprintf("%v: ", k)
-				fmt.Printf(" - ")
-				fmt.Printf(tm.Color(reposiroryErrorString, tm.RED))
-				fmt.Printf(v.Error())
-				fmt.Printf("\n")
-			}
-			fmt.Printf("\n")
-		}
 	}
 }

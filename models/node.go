@@ -2,7 +2,11 @@ package models
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"github.com/msutter/go-pulp/pulp"
+	"net/url"
+	"strings"
 )
 
 type Node struct {
@@ -12,6 +16,7 @@ type Node struct {
 	Tags            []string
 	Parent          *Node
 	Children        []*Node
+	Repositories    []Repository
 	SyncPath        []string
 	Depth           int
 	TreePosition    int
@@ -271,6 +276,88 @@ func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (e
 func (n *Node) Show() (err error) {
 	fmt.Println(n.GetTreeRaw(n.Fqdn))
 	return nil
+}
+
+func (n *Node) CheckRepositories(repositories []string) (err error) {
+	for _, targetRepository := range repositories {
+		if !n.HasRepository(targetRepository) {
+			errorMsg := fmt.Sprintf("Could not find repository '%v' on node %v", targetRepository, n.Fqdn)
+			err = errors.New(errorMsg)
+			n.RepositoryError[targetRepository] = err
+			return err
+		}
+	}
+	return
+}
+
+func (n *Node) CheckRepositoryFeeds() (err error) {
+
+	if !n.IsRoot() {
+		for _, currentRepository := range n.Repositories {
+			u, err := url.Parse(currentRepository.Feed)
+
+			// check that the feed is pointing on the parent node
+			if u.Host != n.Parent.Fqdn {
+				errorMsg := fmt.Sprintf("Repository '%v' has invalid feed '%v'. Parent is '%v'",
+					currentRepository.Name,
+					currentRepository.Feed,
+					n.Parent.Fqdn)
+
+				err = errors.New(errorMsg)
+				n.RepositoryError[currentRepository.Name] = err
+				return err
+			}
+
+			// check that the feed is pointing on an existing repository on the parent node
+			pathSlice := strings.Split(u.Path, "/")
+			repoInPath := pathSlice[len(pathSlice)-2]
+
+			if !n.Parent.HasRepository(repoInPath) {
+				errorMsg := fmt.Sprintf("Repository '%v' does not exist on parent node '%v'",
+					repoInPath,
+					n.Parent.Fqdn)
+				err = errors.New(errorMsg)
+				n.RepositoryError[currentRepository.Name] = err
+				return err
+			}
+		}
+	}
+	return
+}
+
+func (n *Node) HasRepository(repository string) bool {
+	for _, currentRepository := range n.Repositories {
+		if currentRepository.Name == repository {
+			return true
+		}
+	}
+	return false
+}
+
+func (n *Node) UpdateRepositories() (err error) {
+	client, err := PulpApiClient(n)
+	if err != nil {
+		n.Errors = append(n.Errors, err)
+		return err
+	}
+
+	var remoteRepos []*pulp.Repository
+	remoteRepos, err = PulpApiGetRepos(n, client)
+
+	if err != nil {
+		n.Errors = append(n.Errors, err)
+		return err
+	}
+
+	for _, remoteRepo := range remoteRepos {
+		repo := Repository{
+			Name: remoteRepo.Id,
+			Feed: remoteRepo.Importers[0].ImporterConfig.Feed,
+		}
+		n.Repositories = append(n.Repositories, repo)
+	}
+
+	return
 }
 
 func (n *Node) GetTreeRaw(msg string) (treeRaw string) {

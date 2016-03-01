@@ -8,6 +8,63 @@ import (
 	"time"
 )
 
+// check if node contains repo
+func NodeContainsRepo(pulpRepos []*pulp.Repository, repository string) bool {
+	for _, r := range pulpRepos {
+		if r.Id == repository {
+			return true
+		}
+	}
+	return false
+}
+
+// func FeedHostMatchParent(n *Node, pulpRepos []*pulp.Repository, repository string) (bool, err error) {
+// 	for _, r := range pulpRepos {
+// 		feed := r.Importers[0].ImporterConfig.Feed
+// 		u, err := url.Parse(feed)
+
+// 		if u.Host != n.Parent.Fqdn {
+// 			errorMsg := fmt.Sprintf("repository '%v' on node %v has invalid feed '%v'", repository, n.Fqdn, feed)
+// 			err = errors.New(errorMsg)
+// 			return false, err
+// 		}
+
+// 		pathSlice := path.Split(u.Path)
+// 		repoInPath := pathSlice[len(pathSlice)-2]
+
+// 		if
+// 			errorMsg := fmt.Sprintf("repository '%v' on node %v has invalid feed '%v'", repository, n.Fqdn, feed)
+// 			err = errors.New(errorMsg)
+// 			return false, err
+// 		}
+
+// 	}
+// 	return true, err
+// }
+
+// func ValidateRepoSync(n *Node, pulpRepos []*pulp.Repository, repository string) (bool, err error) {
+// 	for _, r := range pulpRepos {
+// 		feed := r.Importers[0].ImporterConfig.Feed
+// 		u, err := url.Parse(feed)
+
+// 		if r.Id == repository {
+// 			errorMsg := fmt.Sprintf("repository '%v' does not exist on node %v", repository, n.Fqdn)
+// 			err = errors.New(errorMsg)
+// 			return false, err
+// 		}
+
+// 		repoInPath = path.Split(u.Path)
+
+// 		if u.Host != n.Parent.Fqdn {
+// 			errorMsg := fmt.Sprintf("repository '%v' does not exist on node %v", repository, n.Fqdn)
+// 			err = errors.New(errorMsg)
+// 			return false, err
+// 		}
+
+// 	}
+// 	return false, err
+// }
+
 func PulpApiClient(n *Node) (client *pulp.Client, err error) {
 
 	// Use default credentials if not specified on node level
@@ -27,7 +84,7 @@ func PulpApiClient(n *Node) (client *pulp.Client, err error) {
 }
 
 // Return a list of all repositories
-func PulpApiGetRepos(n *Node, client *pulp.Client, repositoriy string) (repos []*pulp.Repository, err error) {
+func PulpApiGetRepos(n *Node, client *pulp.Client) (repos []*pulp.Repository, err error) {
 
 	// repository options
 	opt := &pulp.GetRepositoryOptions{
@@ -47,15 +104,51 @@ func PulpApiSyncRepo(n *Node, client *pulp.Client, repositories []string, progre
 	waitingTimeout := 10
 	waitingRetries := 3
 
+	// Get the repos on the target node
+	var remoteRepos []*pulp.Repository
+	remoteRepos, err = PulpApiGetRepos(n, client)
+
 	if !n.IsRoot() {
-		n.RepositoryError = make(map[string]error)
 
 	REPOSITORY_LOOP:
 		for _, repository := range repositories {
 
+			repoExists := NodeContainsRepo(remoteRepos, repository)
+			_ = "breakpoint"
+
+			// check if repo exists on target node
+			if !repoExists {
+				errorMsg := fmt.Sprintf("repository '%v' does not exist on node %v", repository, n.Fqdn)
+				err = errors.New(errorMsg)
+				// n.Errors = append(n.Errors, err)
+				n.RepositoryError[repository] = err
+				sp := SyncProgress{
+					Repository: repository,
+					Node:       n,
+					State:      "error",
+				}
+				progressChannel <- sp
+				continue REPOSITORY_LOOP
+			}
+
+			// check if repo feed points to a valid parent node repository
+			if !repoExists {
+				errorMsg := fmt.Sprintf("repository '%v' does not exist on node %v", repository, n.Fqdn)
+				err = errors.New(errorMsg)
+				// n.Errors = append(n.Errors, err)
+				n.RepositoryError[repository] = err
+				sp := SyncProgress{
+					Repository: repository,
+					Node:       n,
+					State:      "error",
+				}
+				progressChannel <- sp
+				continue REPOSITORY_LOOP
+			}
+
 			callReport, _, err := client.Repositories.SyncRepository(repository)
 			if err != nil {
-				n.Errors = append(n.Errors, err)
+				// n.Errors = append(n.Errors, err)
 				n.RepositoryError[repository] = err
 				sp := SyncProgress{
 					Repository: repository,
@@ -102,7 +195,7 @@ func PulpApiSyncRepo(n *Node, client *pulp.Client, repositories []string, progre
 				if task.State == "error" {
 					errorMsg := task.ProgressReport.YumImporter.Metadata.Error
 					err = errors.New(errorMsg)
-					n.Errors = append(n.Errors, err)
+					// n.Errors = append(n.Errors, err)
 					n.RepositoryError[repository] = err
 
 					sp := SyncProgress{
@@ -125,7 +218,7 @@ func PulpApiSyncRepo(n *Node, client *pulp.Client, repositories []string, progre
 
 						errorMsg := fmt.Sprintf("sync task '%v' has reached timeout in waiting state", task.Id)
 						err = errors.New(errorMsg)
-						n.Errors = append(n.Errors, err)
+						// n.Errors = append(n.Errors, err)
 						n.RepositoryError[repository] = err
 
 						sp := SyncProgress{
@@ -162,7 +255,7 @@ func PulpApiSyncRepo(n *Node, client *pulp.Client, repositories []string, progre
 
 							errorMsg := fmt.Sprintf("sync task '%v' has reached timeout in running state with missing task content object", task.Id)
 							err = errors.New(errorMsg)
-							n.Errors = append(n.Errors, err)
+							// n.Errors = append(n.Errors, err)
 							n.RepositoryError[repository] = err
 
 							sp := SyncProgress{

@@ -33,9 +33,14 @@ func (s *Stage) Init() {
 	pos := 1
 	s.NodeTreeWalker(s.PulpRootNode, func(node *Node) {
 		s.Nodes = append(s.Nodes, node)
+
+		// make the errors container
+		node.RepositoryError = make(map[string]error)
+
 		// set treePosition
 		node.TreePosition = pos
 		pos++
+
 		// set the leafs
 		if node.IsLeaf() {
 			s.Leafs = append(s.Leafs, node)
@@ -128,6 +133,19 @@ func (s *Stage) Show() {
 	s.Init()
 	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
 		n.Show()
+	})
+}
+
+func (s *Stage) CheckAll() {
+	return
+}
+
+func (s *Stage) Check(repositories []string) {
+	s.Init()
+	s.NodeTreeWalker(s.PulpRootNode, func(n *Node) {
+		n.UpdateRepositories()
+		n.CheckRepositories(repositories)
+		n.CheckRepositoryFeeds()
 	})
 }
 
