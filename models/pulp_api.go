@@ -9,6 +9,15 @@ import (
 )
 
 func PulpApiClient(n *Node) (client *pulp.Client, err error) {
+
+	// Use default credentials if not specified on node level
+	if n.ApiUser == "" {
+		n.ApiUser = viper.GetString("ApiUser")
+	}
+	if n.ApiPasswd == "" {
+		n.ApiPasswd = viper.GetString("ApiPasswd")
+	}
+
 	// create the API client
 	client, err = pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
 	if err != nil {
@@ -17,6 +26,7 @@ func PulpApiClient(n *Node) (client *pulp.Client, err error) {
 	return
 }
 
+// Return a list of all repositories
 func PulpApiGetRepos(n *Node, client *pulp.Client, repositoriy string) (repos []*pulp.Repository, err error) {
 
 	// repository options
@@ -30,7 +40,6 @@ func PulpApiGetRepos(n *Node, client *pulp.Client, repositoriy string) (repos []
 	}
 
 	return repos, err
-
 }
 
 func PulpApiSyncRepo(n *Node, client *pulp.Client, repositories []string, progressChannel chan SyncProgress) (err error) {
@@ -38,27 +47,8 @@ func PulpApiSyncRepo(n *Node, client *pulp.Client, repositories []string, progre
 	waitingTimeout := 10
 	waitingRetries := 3
 
-	if n.ApiUser == "" {
-		n.ApiUser = viper.GetString("ApiUser")
-	}
-
-	if n.ApiPasswd == "" {
-		n.ApiPasswd = viper.GetString("ApiPasswd")
-	}
-
 	if !n.IsRoot() {
 		n.RepositoryError = make(map[string]error)
-
-		// // create the API client
-		// client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
-		// if err != nil {
-		// 	n.Errors = append(n.Errors, err)
-		// 	sp := SyncProgress{
-		// 		Node:  n,
-		// 		State: "error",
-		// 	}
-		// 	progressChannel <- sp
-		// }
 
 	REPOSITORY_LOOP:
 		for _, repository := range repositories {
