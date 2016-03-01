@@ -8,11 +8,32 @@ import (
 	"time"
 )
 
-func PulpApiRepoCheck(n *Node, repositoriy string) (exist bool, err error) {
-	callReport, _, err := client.Repositories.CheckRepository(repository)
+func PulpApiClient(n *Node) (client *pulp.Client, err error) {
+	// create the API client
+	client, err = pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
+	if err != nil {
+		return client, err
+	}
+	return
 }
 
-func PulpApiReposSync(n *Node, repositories []string, progressChannel chan SyncProgress) (err error) {
+func PulpApiGetRepos(n *Node, client *pulp.Client, repositoriy string) (repos []*pulp.Repository, err error) {
+
+	// repository options
+	opt := &pulp.GetRepositoryOptions{
+		Details: true,
+	}
+
+	repos, _, err = client.Repositories.ListRepositories(opt)
+	if err != nil {
+		return repos, err
+	}
+
+	return repos, err
+
+}
+
+func PulpApiSyncRepo(n *Node, client *pulp.Client, repositories []string, progressChannel chan SyncProgress) (err error) {
 
 	waitingTimeout := 10
 	waitingRetries := 3
@@ -28,16 +49,16 @@ func PulpApiReposSync(n *Node, repositories []string, progressChannel chan SyncP
 	if !n.IsRoot() {
 		n.RepositoryError = make(map[string]error)
 
-		// create the API client
-		client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
-		if err != nil {
-			n.Errors = append(n.Errors, err)
-			sp := SyncProgress{
-				Node:  n,
-				State: "error",
-			}
-			progressChannel <- sp
-		}
+		// // create the API client
+		// client, err := pulp.NewClient(n.Fqdn, n.ApiUser, n.ApiPasswd, nil)
+		// if err != nil {
+		// 	n.Errors = append(n.Errors, err)
+		// 	sp := SyncProgress{
+		// 		Node:  n,
+		// 		State: "error",
+		// 	}
+		// 	progressChannel <- sp
+		// }
 
 	REPOSITORY_LOOP:
 		for _, repository := range repositories {

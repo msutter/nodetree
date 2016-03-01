@@ -260,7 +260,8 @@ func (n *Node) TagsInDescendant(childTags []string) bool {
 }
 
 func (n *Node) Sync(repositories []string, progressChannel chan SyncProgress) (err error) {
-	err = PulpApiReposSync(n, repositories, progressChannel)
+	client, err := PulpApiClient(n)
+	err = PulpApiSyncRepo(n, client, repositories, progressChannel)
 	if err != nil {
 		return err
 	}
