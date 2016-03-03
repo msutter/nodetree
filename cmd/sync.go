@@ -16,12 +16,11 @@ package cmd
 
 import (
 	"fmt"
+	tm "github.com/buger/goterm"
 	"github.com/msutter/nodetree/models"
 	"github.com/spf13/cobra"
-	"sync"
-	// "time"
-	tm "github.com/buger/goterm"
 	"os"
+	"sync"
 )
 
 // syncCmd represents the sync command

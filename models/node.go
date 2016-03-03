@@ -279,19 +279,28 @@ func (n *Node) Show() (err error) {
 }
 
 func (n *Node) CheckRepositories(repositories []string) (err error) {
-	for _, targetRepository := range repositories {
-		if !n.HasRepository(targetRepository) {
-			errorMsg := fmt.Sprintf("Could not find repository '%v' on node %v", targetRepository, n.Fqdn)
-			err = errors.New(errorMsg)
-			n.RepositoryError[targetRepository] = err
-			return err
+	if !n.IsRoot() {
+		fmt.Printf("checking repositories on node %v\n", n.Fqdn)
+		for _, targetRepository := range repositories {
+			fmt.Printf("  - '%v': ", targetRepository)
+			if !n.HasRepository(targetRepository) {
+				fmt.Printf("error\n")
+				fmt.Printf("\n")
+				errorMsg := fmt.Sprintf("Could not find repository '%v' on node %v", targetRepository, n.Fqdn)
+				err = errors.New(errorMsg)
+				n.RepositoryError[targetRepository] = err
+				return err
+			} else {
+				fmt.Printf("pass\n")
+			}
 		}
+		fmt.Printf("\n")
+
 	}
 	return
 }
 
 func (n *Node) CheckRepositoryFeeds() (err error) {
-
 	if !n.IsRoot() {
 		for _, currentRepository := range n.Repositories {
 			u, err := url.Parse(currentRepository.Feed)

@@ -2,6 +2,7 @@ package models
 
 import (
 	// "fmt"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -137,7 +138,16 @@ func (s *Stage) Show() {
 }
 
 func (s *Stage) CheckAll() {
-	return
+	// get all repositories exising on the root pulp node
+	s.PulpRootNode.UpdateRepositories()
+	var repositories []string
+	fmt.Printf("\nfound following repositories on root node %v\n", s.PulpRootNode.Fqdn)
+	for _, rootRepository := range s.PulpRootNode.Repositories {
+		repositories = append(repositories, rootRepository.Name)
+		fmt.Printf("  - '%v'\n", rootRepository.Name)
+	}
+	fmt.Printf("\n")
+	s.Check(repositories)
 }
 
 func (s *Stage) Check(repositories []string) {
